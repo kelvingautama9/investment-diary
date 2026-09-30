@@ -1,0 +1,6 @@
+{
+  "name": "ApexTerminal - Real-Time Investment & Trading Intelligence",
+  "description": "Modern Bloomberg Terminal-style real-time investment dashboard with Google Sheets bi-directional synchronization, logarithmic candlestick charts, multi-timeframe TradingView integration, algorithmic market structure & FVG signals, and AI sentiment analysis.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
