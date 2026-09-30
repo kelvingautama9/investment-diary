@@ -27,6 +27,7 @@ import { GoogleSheetSettingsPage } from './components/GoogleSheetSettingsPage';
 import { AIPopupChatbot } from './components/AIPopupChatbot';
 import { AddEditTradeModal } from './components/AddEditTradeModal';
 import { DeleteConfirmModal } from './components/DeleteConfirmModal';
+import { Globe, Copy, Check, ExternalLink, AlertTriangle, X } from 'lucide-react';
 
 export default function App() {
   // Navigation State - only 'portfolio' and 'settings'
@@ -167,10 +168,13 @@ export default function App() {
   };
 
   // Google Login / Logout
-  const handleLogin = async () => {
+  const [unauthorizedDomain, setUnauthorizedDomain] = useState<string | null>(null);
+  const [copiedModalDomain, setCopiedModalDomain] = useState(false);
+
+  const handleLogin = async (useRedirect = false) => {
     setIsLoggingIn(true);
     try {
-      const authRes = await googleSignIn();
+      const authRes = await googleSignIn(useRedirect);
       if (authRes) {
         setUser(authRes.user);
         setAccessToken(authRes.accessToken);
@@ -182,7 +186,16 @@ export default function App() {
       }
     } catch (err: any) {
       console.error('Sign in error:', err);
-      alert('Gagal Sign in Google: ' + (err?.message || 'Error'));
+      const host = err?.hostname || (typeof window !== 'undefined' ? window.location.hostname : '');
+      if (
+        err?.code === 'auth/unauthorized-domain' ||
+        err?.message?.includes('DOMAIN_UNAUTHORIZED') ||
+        err?.message?.includes('unauthorized-domain')
+      ) {
+        setUnauthorizedDomain(host || 'vercel.app');
+      } else {
+        alert('Gagal Sign in Google: ' + (err?.message || 'Error'));
+      }
     } finally {
       setIsLoggingIn(false);
     }
@@ -358,6 +371,95 @@ export default function App() {
         sheetTitle={sheetTitle}
         isDeleting={isDeleting}
       />
+
+      {/* 6. Unauthorized Domain Alert Modal (Vercel / GitHub Pages) */}
+      {unauthorizedDomain && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in">
+          <div className="w-full max-w-lg bg-[#10141f] border border-[#1b2234] rounded-2xl p-6 shadow-2xl space-y-4 text-left select-none">
+            <div className="flex items-center justify-between pb-3 border-b border-white/10">
+              <div className="flex items-center gap-2.5 text-amber-400">
+                <AlertTriangle className="w-5 h-5 shrink-0" />
+                <h3 className="text-sm font-bold text-white">Domain Belum Diizinkan di Firebase Console</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setUnauthorizedDomain(null)}
+                className="text-slate-400 hover:text-white p-1"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-300 leading-relaxed">
+              Google memblokir login OAuth karena domain website Anda saat ini (<strong>Vercel / GitHub Pages</strong>) belum didaftarkan ke daftar <em>Authorized Domains</em> di Firebase Console.
+            </p>
+
+            <div className="space-y-1.5">
+              <span className="text-[11px] font-semibold text-slate-400 block">Domain yang harus didaftarkan:</span>
+              <div className="flex items-center gap-2 p-2.5 rounded-xl bg-[#0b0e17] border border-[#1e273d]">
+                <code className="text-xs font-mono text-emerald-400 font-bold flex-1 truncate">
+                  {unauthorizedDomain}
+                </code>
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard.writeText(unauthorizedDomain);
+                    setCopiedModalDomain(true);
+                    setTimeout(() => setCopiedModalDomain(false), 2000);
+                  }}
+                  className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/15 text-slate-200 text-xs font-medium transition-all flex items-center gap-1.5"
+                >
+                  {copiedModalDomain ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                  <span>{copiedModalDomain ? 'Tersalin!' : 'Salin Domain'}</span>
+                </button>
+              </div>
+            </div>
+
+            <div className="p-3.5 rounded-xl bg-blue-500/10 border border-blue-500/20 text-xs text-slate-300 space-y-2">
+              <span className="font-semibold text-blue-300 block">Solusi Cepat 1 Menit:</span>
+              <ol className="list-decimal pl-4 space-y-1.5 text-[11px] text-slate-300">
+                <li>Buka <a href="https://console.firebase.google.com/" target="_blank" rel="noreferrer" className="text-blue-400 underline font-semibold inline-flex items-center gap-0.5">Firebase Console <ExternalLink className="w-2.5 h-2.5 inline" /></a> &gt; Pilih proyek Anda.</li>
+                <li>Masuk ke menu <strong>Authentication</strong> &gt; Tab <strong>Settings</strong> &gt; Gulir ke <strong>Authorized Domains</strong>.</li>
+                <li>Klik <strong>Add Domain</strong>, tempelkan domain Anda di atas (<code>{unauthorizedDomain}</code>), lalu klik <strong>Save</strong>.</li>
+              </ol>
+            </div>
+
+            <div className="flex items-center justify-between gap-2 pt-2 border-t border-white/10">
+              <button
+                type="button"
+                onClick={() => {
+                  setUnauthorizedDomain(null);
+                  setActivePage('settings');
+                }}
+                className="text-xs text-blue-400 hover:text-blue-300 underline"
+              >
+                Gunakan Token Manual di Pengaturan
+              </button>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleLogin(true)}
+                  className="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-slate-200 text-xs font-semibold transition-all"
+                  title="Coba redirect jika popup diblokir"
+                >
+                  Coba Redirect
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setUnauthorizedDomain(null);
+                    handleLogin(false);
+                  }}
+                  className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition-all shadow-md"
+                >
+                  Coba Login Lagi
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

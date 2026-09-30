@@ -234,65 +234,130 @@ Pilih salah satu audit instan di bawah atau ketik pertanyaan spesifik Anda:`,
         headers['x-gemini-api-key'] = privateApiKey;
       }
 
-      const res = await fetch('/api/chat', {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          message: textToSend,
-          history: messages.slice(-10).map(m => ({
-            role: m.sender === 'AI' ? 'model' : 'user',
-            content: m.text,
-          })),
-          journalData: {
-            records,
-            activeSignal,
-          },
-        }),
-      });
+      let fetchSuccess = false;
 
-      if (!res.ok) {
-        throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-      }
+      try {
+        const res = await fetch('/api/chat', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            message: textToSend,
+            history: messages.slice(-10).map(m => ({
+              role: m.sender === 'AI' ? 'model' : 'user',
+              content: m.text,
+            })),
+            journalData: {
+              records,
+              activeSignal,
+            },
+          }),
+        });
 
-      const reader = res.body?.getReader();
-      if (!reader) throw new Error('No readable stream available');
+        if (res.ok) {
+          fetchSuccess = true;
+          const reader = res.body?.getReader();
+          if (reader) {
+            const decoder = new TextDecoder();
+            let buffer = '';
 
-      const decoder = new TextDecoder();
-      let buffer = '';
+            while (true) {
+              const { value, done } = await reader.read();
+              if (done) break;
 
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) break;
+              buffer += decoder.decode(value, { stream: true });
+              const lines = buffer.split('\n');
+              buffer = lines.pop() || '';
 
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || '';
-
-        for (const line of lines) {
-          if (line.startsWith('event: meta')) {
-            // Handled next data line
-          } else if (line.startsWith('data: ')) {
-            const rawData = line.slice(6).trim();
-            if (!rawData) continue;
-            try {
-              const parsed = JSON.parse(rawData);
-              if (parsed.modelUsed) {
-                setActiveStreamingModel(parsed.modelUsed);
-                if (typeof parsed.isPrivateKey === 'boolean') {
-                  setActiveStreamingIsPrivate(parsed.isPrivateKey);
+              for (const line of lines) {
+                if (line.startsWith('event: meta')) {
+                  // Handled next data line
+                } else if (line.startsWith('data: ')) {
+                  const rawData = line.slice(6).trim();
+                  if (!rawData) continue;
+                  try {
+                    const parsed = JSON.parse(rawData);
+                    if (parsed.modelUsed) {
+                      setActiveStreamingModel(parsed.modelUsed);
+                      if (typeof parsed.isPrivateKey === 'boolean') {
+                        setActiveStreamingIsPrivate(parsed.isPrivateKey);
+                      }
+                    }
+                    if (parsed.text) {
+                      targetTextRef.current += parsed.text;
+                    }
+                  } catch {
+                    targetTextRef.current += rawData;
+                  }
+                } else if (line.startsWith('event: done')) {
+                  isStreamFinishedRef.current = true;
                 }
               }
-              if (parsed.text) {
-                targetTextRef.current += parsed.text;
-              }
-            } catch {
-              // Plain text chunk fallback
-              targetTextRef.current += rawData;
             }
-          } else if (line.startsWith('event: done')) {
-            isStreamFinishedRef.current = true;
           }
         }
+      } catch (fetchErr) {
+        console.warn('Backend /api/chat error (likely static hosting), trying client direct GenAI fallback...', fetchErr);
+      }
+
+      // If backend was not reached (e.g. pure static GitHub Pages), call Gemini directly in browser!
+      if (!fetchSuccess) {
+        const directKey =
+          privateApiKey ||
+          (typeof import.meta !== 'undefined' &&
+            (import.meta.env?.VITE_GEMINI_API_KEY || import.meta.env?.GEMINI_API_KEY));
+
+        if (directKey) {
+          const { GoogleGenAI } = await import('@google/genai');
+          const ai = new GoogleGenAI({ apiKey: directKey });
+          const { HEDGE_FUND_SYSTEM_PROMPT, CANDIDATE_MODELS, formatJournalContext } = await import(
+            '../services/aiChatService'
+          );
+          const journalCtx = formatJournalContext({ records, activeSignal });
+
+          let directSuccess = false;
+          for (const model of CANDIDATE_MODELS) {
+            try {
+              setActiveStreamingModel(model);
+              setActiveStreamingIsPrivate(Boolean(privateApiKey));
+              const stream = await ai.models.generateContentStream({
+                model,
+                contents: [
+                  ...messages.slice(-10).map(m => ({
+                    role: m.sender === 'AI' ? 'model' : 'user',
+                    parts: [{ text: m.text }],
+                  })),
+                  {
+                    role: 'user',
+                    parts: [
+                      {
+                        text: `${journalCtx}\n\nPertanyaan/Permintaan Trader:\n${textToSend}`,
+                      },
+                    ],
+                  },
+                ],
+                config: {
+                  systemInstruction: HEDGE_FUND_SYSTEM_PROMPT,
+                  temperature: 0.2,
+                },
+              });
+
+              for await (const chunk of stream) {
+                if (chunk.text) {
+                  targetTextRef.current += chunk.text;
+                }
+              }
+              directSuccess = true;
+              isStreamFinishedRef.current = true;
+              break;
+            } catch (modelErr: any) {
+              console.warn(`[Client Direct] Model ${model} failed, cascading:`, modelErr?.message);
+            }
+          }
+
+          if (directSuccess) return;
+        }
+
+        throw new Error('Gagal menghubungi endpoint backend dan kunci Gemini browser belum tersedia.');
       }
 
       isStreamFinishedRef.current = true;

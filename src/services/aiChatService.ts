@@ -104,16 +104,16 @@ Setiap kali diminta audit atau analisa komprehensif, sajikan dengan struktur:
 4. [OVERTRADING SYNDROME]: Frekuensi trade melonjak drastis di luar trading plan harian.
 `;
 
-// Priority hierarchy model list according to user instructions:
-// Start from gemini-3.6-flash, then 3.5, 3.8, flash-latest, 3.1-flash-lite, 3.5-pro, 3.1-pro-preview
+// Priority hierarchy model list:
+// Put gemini-3.6-flash, 3.5-flash, flash-latest and 3.1-flash-lite FIRST to avoid 3.8 rate-limits
 export const CANDIDATE_MODELS = [
   'gemini-3.6-flash',
   'gemini-3.5-flash',
-  'gemini-3.8-flash',
   'gemini-flash-latest',
   'gemini-3.1-flash-lite',
   'gemini-3.5-pro',
   'gemini-3.1-pro-preview',
+  'gemini-3.8-flash',
 ];
 
 export interface ChatRequestPayload {
@@ -144,7 +144,10 @@ export function formatJournalContext(journalData?: ChatRequestPayload['journalDa
   const winCount = records.filter(r => (r.labaBersih || 0) >= 0).length;
   const lossCount = records.filter(r => (r.labaBersih || 0) < 0).length;
 
-  const tradeListSummary = records.map(r => {
+  // Optimize token usage: prioritize recent 25 trades to avoid token limits
+  const visibleRecords = records.length > 25 ? records.slice(-25) : records;
+
+  const tradeListSummary = visibleRecords.map(r => {
     return `- [${r.type}] ${r.asset} | Status: ${r.status} | Entry: ${r.entryDate} | Exit: ${r.exitDate || '—'} | Modal: Rp ${Math.round(r.nominalIdr).toLocaleString('id-ID')} | PnL: ${r.pnlPercent >= 0 ? '+' : ''}${r.pnlPercent.toFixed(2)}% | Spread: Rp ${Math.round(r.spreadCost).toLocaleString('id-ID')} | Net PnL: Rp ${Math.round(r.labaBersih).toLocaleString('id-ID')}`;
   }).join('\n');
 
@@ -157,7 +160,8 @@ DATA JURNAL PORTOFOLIO INVESTASI AKTIF (GROUND TRUTH GOOGLE SHEET):
 - Total Biaya Spread Drag: Rp ${Math.round(totalSpreadCost).toLocaleString('id-ID')}
 - Win Trades: ${winCount} | Loss Trades: ${lossCount} | Win Rate: ${records.length > 0 ? Math.round((winCount / records.length) * 100) : 0}%
 
-DAFTAR TRANSAKSI LENGKAP:
+DAFTAR TRANSAKSI (TERBARU):
 ${tradeListSummary}
+${records.length > 25 ? `... (${records.length - 25} transaksi historis lainnya telah teragregasi dalam metrik KPI di atas)` : ''}
 `;
 }

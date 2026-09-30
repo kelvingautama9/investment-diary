@@ -9,12 +9,17 @@ import {
   ExternalLink,
   Clock,
   ShieldCheck,
+  Globe,
+  Copy,
+  Check,
+  Key,
 } from 'lucide-react';
 import {
   extractSpreadsheetId,
   listUserSpreadsheets,
   type DriveSpreadsheetFile,
 } from '../services/googleSheets';
+import { setManualAccessToken } from '../services/firebaseAuth';
 import { LiquidButton, Button } from '@/components/ui/liquid-glass-button';
 
 interface GoogleSheetSettingsPageProps {
@@ -47,6 +52,27 @@ export const GoogleSheetSettingsPage: React.FC<GoogleSheetSettingsPageProps> = (
   const [isLoadingDrive, setIsLoadingDrive] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [isError, setIsError] = useState(false);
+  const [manualTokenInput, setManualTokenInput] = useState('');
+  const [copiedDomain, setCopiedDomain] = useState(false);
+  const currentHostname = typeof window !== 'undefined' ? window.location.hostname : '';
+
+  const handleCopyDomain = () => {
+    if (currentHostname) {
+      navigator.clipboard.writeText(currentHostname);
+      setCopiedDomain(true);
+      setTimeout(() => setCopiedDomain(false), 2000);
+    }
+  };
+
+  const handleApplyManualToken = async () => {
+    if (!manualTokenInput.trim()) return;
+    setManualAccessToken(manualTokenInput.trim());
+    setStatusMessage('Token Google OAuth manual berhasil disimpan! Mencoba sinkronisasi...');
+    setIsError(false);
+    if (spreadsheetId) {
+      await onConnectSpreadsheet(spreadsheetId);
+    }
+  };
 
   useEffect(() => {
     setInputUrl(spreadsheetId);
@@ -187,6 +213,75 @@ export const GoogleSheetSettingsPage: React.FC<GoogleSheetSettingsPageProps> = (
             </a>
           </div>
         )}
+      </div>
+
+      {/* Domain Authorization Helper (Vercel / GitHub Pages) */}
+      <div className="p-5 rounded-2xl bg-[#10141f] border border-[#1b2234] space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Globe className="w-4 h-4 text-emerald-400" />
+            <h3 className="text-xs font-bold text-white">Panduan Domain Login (Vercel & GitHub Pages)</h3>
+          </div>
+          <span className="text-[10px] text-slate-400 font-mono">Firebase OAuth Authorized Domain</span>
+        </div>
+
+        <p className="text-xs text-slate-300 leading-relaxed">
+          Jika saat klik <strong>"Sign in with Google"</strong> muncul pesan domain belum diizinkan atau login gagal, daftarkan domain website Anda saat ini ke Firebase Console:
+        </p>
+
+        <div className="flex items-center gap-2 p-2.5 rounded-xl bg-[#0b0e17] border border-[#1e273d]">
+          <span className="text-[11px] text-slate-400">Domain saat ini:</span>
+          <code className="text-xs font-mono text-emerald-400 font-bold flex-1 truncate">
+            {currentHostname || 'localhost'}
+          </code>
+          <button
+            type="button"
+            onClick={handleCopyDomain}
+            className="px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/15 text-slate-200 text-xs font-medium transition-all flex items-center gap-1"
+          >
+            {copiedDomain ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+            <span>{copiedDomain ? 'Tersalin' : 'Salin Domain'}</span>
+          </button>
+        </div>
+
+        <div className="text-[11px] text-slate-400 space-y-1 pl-1">
+          <div>1. Buka <strong>Firebase Console</strong> &gt; Proyek Anda &gt; <strong>Authentication</strong> &gt; tab <strong>Settings</strong>.</div>
+          <div>2. Gulir ke bawah ke bagian <strong>Authorized Domains</strong> &gt; Klik <strong>Add Domain</strong>.</div>
+          <div>3. Tempelkan domain Anda di atas (<code>{currentHostname || 'vercel.app'}</code>) lalu klik Simpan.</div>
+        </div>
+      </div>
+
+      {/* Manual Access Token Bypass */}
+      <div className="p-5 rounded-2xl bg-[#10141f] border border-[#1b2234] space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Key className="w-4 h-4 text-blue-400" />
+            <h3 className="text-xs font-bold text-white">Atau Gunakan Google Access Token Manual</h3>
+          </div>
+          <span className="text-[10px] text-blue-400 font-mono">Bypass Login Popup</span>
+        </div>
+
+        <p className="text-xs text-slate-300 leading-relaxed">
+          Jika browser Anda memblokir popup Google atau belum sempat menambahkan Authorized Domain di Firebase Console, Anda dapat menempelkan Google Access Token langsung:
+        </p>
+
+        <div className="flex gap-2">
+          <input
+            type="password"
+            value={manualTokenInput}
+            onChange={e => setManualTokenInput(e.target.value)}
+            placeholder="ya29.a0AfH6SM..."
+            className="flex-1 bg-[#0b0e17] border border-[#1e273d] rounded-xl px-3.5 py-2 text-xs text-white placeholder:text-slate-600 focus:outline-none focus:border-blue-500 font-mono"
+          />
+          <button
+            type="button"
+            onClick={handleApplyManualToken}
+            disabled={!manualTokenInput.trim()}
+            className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white text-xs font-bold transition-all shadow-md"
+          >
+            Terapkan Token
+          </button>
+        </div>
       </div>
 
       {/* Select from Google Drive */}
