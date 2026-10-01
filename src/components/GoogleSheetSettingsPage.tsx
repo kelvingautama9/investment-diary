@@ -13,6 +13,7 @@ import {
   Copy,
   Check,
   Key,
+  Unlink,
 } from 'lucide-react';
 import {
   extractSpreadsheetId,
@@ -31,7 +32,8 @@ import { LiquidButton, Button } from '@/components/ui/liquid-glass-button';
 
 interface GoogleSheetSettingsPageProps {
   spreadsheetId: string;
-  onConnectSpreadsheet: (id: string) => Promise<void>;
+  onConnectSpreadsheet: (id: string, tabName?: string) => Promise<void>;
+  onDisconnectSpreadsheet: () => void;
   accessToken: string | null;
   sheetConnected: boolean;
   sheetTitle: string;
@@ -45,6 +47,7 @@ interface GoogleSheetSettingsPageProps {
 export const GoogleSheetSettingsPage: React.FC<GoogleSheetSettingsPageProps> = ({
   spreadsheetId,
   onConnectSpreadsheet,
+  onDisconnectSpreadsheet,
   accessToken,
   sheetConnected,
   sheetTitle,
@@ -55,6 +58,8 @@ export const GoogleSheetSettingsPage: React.FC<GoogleSheetSettingsPageProps> = (
   syncLogs,
 }) => {
   const [inputUrl, setInputUrl] = useState(spreadsheetId);
+  const [selectedTab, setSelectedTab] = useState(sheetTitle || 'INVESTMENT');
+  const [customTab, setCustomTab] = useState('');
   const [driveFiles, setDriveFiles] = useState<DriveSpreadsheetFile[]>([]);
   const [isLoadingDrive, setIsLoadingDrive] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
@@ -144,7 +149,7 @@ export const GoogleSheetSettingsPage: React.FC<GoogleSheetSettingsPageProps> = (
     setInputUrl(spreadsheetId || '1zHROHuGIcJm63bpVLpJoaIXmp00gHRdR6Sc2nf_E_7E');
   }, [spreadsheetId]);
 
-  const handleConnect = async (targetId?: string) => {
+  const handleConnect = async (targetId?: string, overrideTab?: string) => {
     const rawId = targetId || inputUrl;
     const cleanId = extractSpreadsheetId(rawId);
 
@@ -154,12 +159,14 @@ export const GoogleSheetSettingsPage: React.FC<GoogleSheetSettingsPageProps> = (
       return;
     }
 
+    const tabToUse = overrideTab || (selectedTab === 'CUSTOM' ? (customTab.trim() || 'INVESTMENT') : selectedTab);
+
     setStatusMessage('Memeriksa Google Sheet dan memuat data transaksi...');
     setIsError(false);
 
     try {
-      await onConnectSpreadsheet(cleanId);
-      setStatusMessage(`Berhasil tersambung! Tab "${sheetTitle}" telah tersinkronisasi.`);
+      await onConnectSpreadsheet(cleanId, tabToUse);
+      setStatusMessage(`Berhasil tersambung! Data transaksi dari tab "${tabToUse}" telah dimuat.`);
     } catch (err: any) {
       setIsError(true);
       if (err?.message === 'RESTRICTED_ACCESS') {
@@ -227,6 +234,17 @@ export const GoogleSheetSettingsPage: React.FC<GoogleSheetSettingsPageProps> = (
               <span className={`w-2 h-2 rounded-full ${sheetConnected ? 'bg-emerald-400 animate-pulse' : 'bg-slate-500'}`} />
               <span>{sheetConnected ? 'Tersinkronisasi' : 'Belum Tersambung'}</span>
             </span>
+
+            {sheetConnected && (
+              <button
+                type="button"
+                onClick={onDisconnectSpreadsheet}
+                className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold text-rose-400 bg-rose-500/10 border border-rose-500/30 hover:bg-rose-500/20 transition-all shadow-sm"
+              >
+                <Unlink className="w-3.5 h-3.5" />
+                <span>Putuskan Koneksi</span>
+              </button>
+            )}
           </div>
         </div>
 
@@ -268,7 +286,7 @@ export const GoogleSheetSettingsPage: React.FC<GoogleSheetSettingsPageProps> = (
       </div>
 
       {/* Connection Input Box */}
-      <div className="p-5 rounded-2xl bg-[#10141f] border border-[#1b2234] space-y-3">
+      <div className="p-5 rounded-2xl bg-[#10141f] border border-[#1b2234] space-y-3.5">
         <label className="text-xs font-semibold text-white block">
           Link Google Sheet Proyek Anda:
         </label>
@@ -278,7 +296,7 @@ export const GoogleSheetSettingsPage: React.FC<GoogleSheetSettingsPageProps> = (
             value={inputUrl}
             onChange={e => setInputUrl(e.target.value)}
             placeholder="https://docs.google.com/spreadsheets/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/edit"
-            className="flex-1 bg-[#0b0e17] border border-[#1e273d] rounded-xl px-3.5 py-2.5 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-blue-500 transition-all"
+            className="flex-1 bg-[#0b0e17] border border-[#1e273d] rounded-xl px-3.5 py-2.5 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-blue-500 transition-all font-mono"
           />
           <LiquidButton
             onClick={() => handleConnect()}
@@ -291,142 +309,140 @@ export const GoogleSheetSettingsPage: React.FC<GoogleSheetSettingsPageProps> = (
             <span>{isSyncing ? 'Menghubungkan...' : 'Hubungkan Sheet'}</span>
           </LiquidButton>
         </div>
+
+        {/* Tab Selection Dropdown */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+          <div>
+            <label className="text-[11px] text-slate-400 font-medium block mb-1">
+              Pilih Tab Rekap Investasi yang Ingin Dibaca:
+            </label>
+            <select
+              value={selectedTab}
+              onChange={e => setSelectedTab(e.target.value)}
+              className="w-full bg-[#0b0e17] border border-[#1e273d] rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-blue-500"
+            >
+              <option value="INVESTMENT">Tab: INVESTMENT (Standar Portofolio)</option>
+              <option value="Investasi">Tab: Investasi</option>
+              <option value="Portofolio">Tab: Portofolio</option>
+              <option value="Portfolio">Tab: Portfolio</option>
+              <option value="Sheet1">Tab: Sheet1</option>
+              <option value="CUSTOM">Nama Tab Lainnya (Kustom)...</option>
+            </select>
+          </div>
+
+          {selectedTab === 'CUSTOM' && (
+            <div>
+              <label className="text-[11px] text-slate-400 font-medium block mb-1">
+                Ketik Nama Tab Spreadsheet Anda:
+              </label>
+              <input
+                type="text"
+                value={customTab}
+                onChange={e => setCustomTab(e.target.value)}
+                placeholder="Contoh: Rekap 2026, Portofolio Saham"
+                className="w-full bg-[#0b0e17] border border-[#1e273d] rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500"
+              />
+            </div>
+          )}
+        </div>
+
         <p className="text-[11px] text-slate-400">
-          Tempelkan link proyek Google Sheet Anda (contohnya sheet "Monthly Spend 2026"). Web ini akan otomatis membaca dan merekap data pada tab <strong>INVESTMENT</strong>.
+          Tempelkan link Google Sheet Anda (contohnya sheet "Monthly Spend 2026"). Web ini akan otomatis merekap transaksi investasi dan secara cerdas mengabaikan data non-investasi seperti transport/belanja harian.
         </p>
 
-        {spreadsheetId && (
-          <div className="pt-2">
-            <a
-              href={`https://docs.google.com/spreadsheets/d/${spreadsheetId}`}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-1.5 text-xs text-blue-400 hover:text-blue-300"
+        {sheetConnected && (
+          <div className="pt-2 flex flex-wrap items-center justify-between gap-3 border-t border-[#1b2234]">
+            {spreadsheetId && (
+              <a
+                href={`https://docs.google.com/spreadsheets/d/${spreadsheetId}`}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1.5 text-xs text-blue-400 hover:text-blue-300"
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+                <span>Buka Google Sheet asli di tab baru</span>
+              </a>
+            )}
+
+            <button
+              type="button"
+              onClick={() => {
+                onDisconnectSpreadsheet();
+                setStatusMessage('Google Sheet berhasil diputuskan. Seluruh angka direset ke 0.');
+                setIsError(false);
+              }}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-rose-400 bg-rose-500/10 border border-rose-500/30 hover:bg-rose-500/20 transition-all shadow-sm"
             >
-              <ExternalLink className="w-3.5 h-3.5" />
-              <span>Buka Google Sheet asli di tab baru</span>
-            </a>
+              <Unlink className="w-3.5 h-3.5" />
+              <span>Putuskan Koneksi Google Sheet</span>
+            </button>
           </div>
         )}
       </div>
 
-      {/* Domain Authorization Helper (Vercel / GitHub Pages) */}
-      <div className="p-5 rounded-2xl bg-[#10141f] border border-[#1b2234] space-y-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Globe className="w-4 h-4 text-emerald-400" />
-            <h3 className="text-xs font-bold text-white">Panduan Domain Login (Vercel & GitHub Pages)</h3>
-          </div>
-          <span className="text-[10px] text-slate-400 font-mono">Firebase OAuth Authorized Domain</span>
-        </div>
-
-        <p className="text-xs text-slate-300 leading-relaxed">
-          Jika saat klik <strong>"Sign in with Google"</strong> muncul pesan domain belum diizinkan atau login gagal, daftarkan domain website Anda saat ini ke Firebase Console:
-        </p>
-
-        <div className="flex items-center gap-2 p-2.5 rounded-xl bg-[#0b0e17] border border-[#1e273d]">
-          <span className="text-[11px] text-slate-400">Domain saat ini:</span>
-          <code className="text-xs font-mono text-emerald-400 font-bold flex-1 truncate">
-            {currentHostname || 'localhost'}
-          </code>
-          <button
-            type="button"
-            onClick={handleCopyDomain}
-            className="px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/15 text-slate-200 text-xs font-medium transition-all flex items-center gap-1"
-          >
-            {copiedDomain ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
-            <span>{copiedDomain ? 'Tersalin' : 'Salin Domain'}</span>
-          </button>
-        </div>
-
-        <div className="text-[11px] text-slate-400 space-y-1 pl-1">
-          <div>1. Buka <strong>Firebase Console</strong> &gt; Proyek Anda &gt; <strong>Authentication</strong> &gt; tab <strong>Settings</strong>.</div>
-          <div>2. Gulir ke bawah ke bagian <strong>Authorized Domains</strong> &gt; Klik <strong>Add Domain</strong>.</div>
-          <div>3. Tempelkan domain Anda di atas (<code>{currentHostname || 'vercel.app'}</code>) lalu klik Simpan.</div>
-        </div>
-      </div>
-
-      {/* Bring Your Own Firebase Project Configurator */}
-      <div className="p-5 rounded-2xl bg-[#10141f] border border-[#1b2234] space-y-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Settings2 className="w-4 h-4 text-amber-400" />
-            <h3 className="text-xs font-bold text-white">Hubungkan Project Firebase Milik Anda (BYOF)</h3>
-          </div>
-          <span className="text-[10px] text-amber-400 font-mono">
-            {isUsingCustomFirebase ? 'Custom Firebase Aktif' : `Project: ${activeFirebaseProjectId}`}
+      {/* Advanced Settings Accordion (Keeps page clean and effortless) */}
+      <details className="p-4 rounded-2xl bg-[#10141f] border border-[#1b2234] space-y-4 group">
+        <summary className="text-xs font-semibold text-slate-400 hover:text-white cursor-pointer list-none flex items-center justify-between select-none">
+          <span className="flex items-center gap-2">
+            <Settings2 className="w-3.5 h-3.5 text-slate-400" />
+            <span>Pengaturan Lanjutan: Panduan Domain &amp; Token Manual (Opsional)</span>
           </span>
-        </div>
+          <span className="text-[10px] text-blue-400 font-mono group-open:hidden">+ Buka Pengaturan</span>
+        </summary>
 
-        <p className="text-xs text-slate-300 leading-relaxed">
-          Jika Anda telah menambahkan authorized domain ke <strong>Project Firebase milik Anda sendiri</strong>, tempelkan konfigurasi web Firebase Anda di bawah ini agar web terhubung ke project Anda:
-        </p>
+        <div className="pt-3 space-y-4 border-t border-[#1b2234] mt-3">
+          {/* Domain Authorization Helper (Vercel / GitHub Pages) */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                <Globe className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Authorized Domain (Vercel &amp; GitHub Pages)</span>
+              </span>
+              <span className="text-[10px] text-slate-500 font-mono">Firebase OAuth</span>
+            </div>
 
-        <div className="space-y-2">
-          <textarea
-            rows={3}
-            value={byofConfigInput}
-            onChange={e => setByofConfigInput(e.target.value)}
-            placeholder='{"apiKey": "AIzaSy...", "authDomain": "my-project.firebaseapp.com", "projectId": "my-project", "appId": "..."}'
-            className="w-full bg-[#0b0e17] border border-[#1e273d] rounded-xl p-3 text-xs text-white font-mono placeholder:text-slate-600 focus:outline-none focus:border-blue-500"
-          />
-          {byofError && <p className="text-xs text-rose-400">{byofError}</p>}
-          <div className="flex items-center justify-between">
-            {isUsingCustomFirebase ? (
+            <div className="flex items-center gap-2 p-2.5 rounded-xl bg-[#0b0e17] border border-[#1e273d]">
+              <span className="text-[11px] text-slate-400">Domain saat ini:</span>
+              <code className="text-xs font-mono text-emerald-400 font-bold flex-1 truncate">
+                {currentHostname || 'localhost'}
+              </code>
               <button
                 type="button"
-                onClick={clearCustomFirebaseConfig}
-                className="text-xs text-rose-400 hover:text-rose-300 underline font-medium"
+                onClick={handleCopyDomain}
+                className="px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/15 text-slate-200 text-xs font-medium transition-all flex items-center gap-1"
               >
-                Reset ke Project Bawaan
+                {copiedDomain ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                <span>{copiedDomain ? 'Tersalin' : 'Salin Domain'}</span>
               </button>
-            ) : (
-              <span className="text-[10px] text-slate-500">Salin dari Firebase Console &gt; Project settings &gt; General &gt; Your apps</span>
-            )}
-            <button
-              type="button"
-              onClick={handleSaveByof}
-              disabled={!byofConfigInput.trim()}
-              className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 disabled:opacity-40 text-white text-xs font-bold transition-all shadow-md"
-            >
-              Simpan & Terapkan Project Firebase
-            </button>
+            </div>
+          </div>
+
+          {/* Manual Access Token Bypass */}
+          <div className="space-y-2">
+            <span className="text-xs font-bold text-white flex items-center gap-1.5">
+              <Key className="w-3.5 h-3.5 text-blue-400" />
+              <span>Token Akses Google OAuth Manual (Bypass Login)</span>
+            </span>
+            <div className="flex gap-2">
+              <input
+                type="password"
+                value={manualTokenInput}
+                onChange={e => setManualTokenInput(e.target.value)}
+                placeholder="ya29.a0AfH6SM..."
+                className="flex-1 bg-[#0b0e17] border border-[#1e273d] rounded-xl px-3.5 py-2 text-xs text-white placeholder:text-slate-600 focus:outline-none focus:border-blue-500 font-mono"
+              />
+              <button
+                type="button"
+                onClick={handleApplyManualToken}
+                disabled={!manualTokenInput.trim()}
+                className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white text-xs font-bold transition-all shadow-md"
+              >
+                Terapkan
+              </button>
+            </div>
           </div>
         </div>
-      </div>
-
-      {/* Manual Access Token Bypass */}
-      <div className="p-5 rounded-2xl bg-[#10141f] border border-[#1b2234] space-y-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Key className="w-4 h-4 text-blue-400" />
-            <h3 className="text-xs font-bold text-white">Atau Gunakan Google Access Token Manual</h3>
-          </div>
-          <span className="text-[10px] text-blue-400 font-mono">Bypass Login Popup</span>
-        </div>
-
-        <p className="text-xs text-slate-300 leading-relaxed">
-          Jika browser Anda memblokir popup Google atau belum sempat menambahkan Authorized Domain di Firebase Console, Anda dapat menempelkan Google Access Token langsung:
-        </p>
-
-        <div className="flex gap-2">
-          <input
-            type="password"
-            value={manualTokenInput}
-            onChange={e => setManualTokenInput(e.target.value)}
-            placeholder="ya29.a0AfH6SM..."
-            className="flex-1 bg-[#0b0e17] border border-[#1e273d] rounded-xl px-3.5 py-2 text-xs text-white placeholder:text-slate-600 focus:outline-none focus:border-blue-500 font-mono"
-          />
-          <button
-            type="button"
-            onClick={handleApplyManualToken}
-            disabled={!manualTokenInput.trim()}
-            className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white text-xs font-bold transition-all shadow-md"
-          >
-            Terapkan Token
-          </button>
-        </div>
-      </div>
+      </details>
 
       {/* Select from Google Drive */}
       <div className="p-5 rounded-2xl bg-[#10141f] border border-[#1b2234] space-y-3">

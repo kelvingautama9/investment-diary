@@ -130,6 +130,117 @@ function parseIndonesianNumber(
   return isNaN(num) ? 0 : num;
 }
 
+// Comprehensive blacklist of expense/budget/non-investment categories
+const EXCLUDED_EXPENSE_KEYWORDS = [
+  'TRANSPORT',
+  'TRANSPORTASI',
+  'KENDARAAN',
+  'BENSIN',
+  'ONGKOS',
+  'GRAB',
+  'GOJEK',
+  'UBER',
+  'TIKET',
+  'TAKSI',
+  'PARKIR',
+  'TOL',
+  'TOLL',
+  'MAKAN',
+  'MAKANAN',
+  'FOOD',
+  'KULINER',
+  'RESTO',
+  'CAFE',
+  'MINUM',
+  'LUNCH',
+  'DINNER',
+  'EXPENSE',
+  'PENGELUARAN',
+  'BIAYA',
+  'TAGIHAN',
+  'BILLS',
+  'LISTRIK',
+  'PLN',
+  'AIR',
+  'PDAM',
+  'PULSA',
+  'KUOTA',
+  'INTERNET',
+  'WIFI',
+  'KOS',
+  'KOST',
+  'SEWA',
+  'RENT',
+  'GAJI',
+  'SALARY',
+  'BONUS',
+  'THR',
+  'BELANJA',
+  'SHOPPING',
+  'SUPERMARKET',
+  'MINIMARKET',
+  'INDOMARET',
+  'ALFAMART',
+  'ASURANSI',
+  'INSURANCE',
+  'PAJAK',
+  'TAX',
+  'ADMIN',
+  'FEE',
+  'MUTASI',
+  'TRANSFER',
+  'TARIK TUNAI',
+  'TOP UP',
+  'TOPUP',
+  'DEPOSIT',
+  'WITHDRAW',
+  'SALDO',
+  'TOTAL',
+  'SUBTOTAL',
+  'GRAND TOTAL',
+  'AVERAGE',
+  'RATA-RATA',
+  'NOTE',
+  'NOTES',
+  'KETERANGAN',
+  'SPEND',
+];
+
+export function isNonInvestmentOrExpense(text?: string | null): boolean {
+  if (!text) return true;
+  const upper = String(text).trim().toUpperCase();
+  if (upper.length <= 1) return true;
+  if (upper === 'ASSET' || upper === 'TYPE' || upper === 'TANGGAL' || upper === 'DATE' || upper === '-' || upper === '.') return true;
+
+  // Substring check for all forbidden expense keywords
+  return EXCLUDED_EXPENSE_KEYWORDS.some(kw => upper.includes(kw));
+}
+
+export function isValidInvestmentTrade(
+  typeRaw: string,
+  asset: string,
+  nominalIdr: number,
+  jumlah: number,
+  entryPrice: number
+): boolean {
+  if (!asset || asset.trim().length <= 1) return false;
+  if (isNonInvestmentOrExpense(asset)) return false;
+  if (isNonInvestmentOrExpense(typeRaw)) return false;
+
+  const upperType = typeRaw.trim().toUpperCase();
+  // Must be BUY, SELL, BELI, or JUAL
+  const isBuy = upperType === 'BUY' || upperType === 'BELI';
+  const isSell = upperType === 'SELL' || upperType === 'JUAL';
+  if (!isBuy && !isSell) return false;
+
+  // Must have capital invested > 0 or quantity > 0
+  if (nominalIdr <= 0 && (jumlah <= 0 || entryPrice <= 0)) {
+    return false;
+  }
+
+  return true;
+}
+
 // Convert date from "5-Jan-2026" or "2026-01-05" into YYYY-MM-DD
 function parseDateToIso(dateStr: string): string {
   if (!dateStr || dateStr.includes('dd/mm/yyyy')) return '';
@@ -165,27 +276,34 @@ function parseDateToIso(dateStr: string): string {
 // Zero-Auth Public Google Sheet Fetcher via GViz API (Requires ZERO login, ZERO Firebase, ZERO setup)
 export async function fetchInvestmentRecordsViaGviz(
   spreadsheetId: string,
-  sheetName: string = SHEET_NAME
+  preferredSheetName?: string
 ): Promise<{ records: InvestmentRecord[]; title: string; tabExists: boolean }> {
   const cleanId = extractSpreadsheetId(spreadsheetId);
   if (!cleanId) {
     throw new Error('ID Spreadsheet tidak valid.');
   }
 
-  const urls = [
-    `https://docs.google.com/spreadsheets/d/${cleanId}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(sheetName)}`,
-    `https://docs.google.com/spreadsheets/d/${cleanId}/gviz/tq?tqx=out:json`,
-  ];
+  // Candidate tabs to try in priority order
+  const candidateTabs = Array.from(new Set([
+    preferredSheetName?.trim(),
+    'INVESTMENT',
+    'Investasi',
+    'Portofolio',
+    'Portfolio',
+    'Sheet1',
+  ])).filter(Boolean) as string[];
 
   let rawJson: any = null;
+  let activeTabName = preferredSheetName || SHEET_NAME;
   let lastError = '';
 
-  for (const url of urls) {
+  // 1. Try named tabs first
+  for (const tab of candidateTabs) {
     try {
+      const url = `https://docs.google.com/spreadsheets/d/${cleanId}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(tab)}`;
       const res = await fetch(url);
       const text = await res.text();
 
-      // Check if Google returned restricted / 404 access
       if (
         text.includes('Page not found') ||
         text.includes('google.com/start/apps') ||
@@ -195,17 +313,47 @@ export async function fetchInvestmentRecordsViaGviz(
         throw new Error('RESTRICTED_ACCESS');
       }
 
-      // Extract JSON from Google's setResponse wrapper
       const match = text.match(/google\.visualization\.Query\.setResponse\(([\s\S]*)\);?/);
       if (match && match[1]) {
         const parsed = JSON.parse(match[1]);
         if (parsed?.status === 'error') {
-          lastError = parsed.errors?.[0]?.message || 'Query error';
+          // Tab not found or query error, try next candidate
           continue;
         }
+        if (parsed?.table && parsed.table.rows && parsed.table.rows.length > 0) {
+          rawJson = parsed;
+          activeTabName = tab;
+          break;
+        }
+      }
+    } catch (e: any) {
+      if (e?.message === 'RESTRICTED_ACCESS') throw e;
+      lastError = e?.message || 'Network error';
+    }
+  }
+
+  // 2. If no candidate tab matched, try default first tab
+  if (!rawJson?.table) {
+    try {
+      const url = `https://docs.google.com/spreadsheets/d/${cleanId}/gviz/tq?tqx=out:json`;
+      const res = await fetch(url);
+      const text = await res.text();
+
+      if (
+        text.includes('Page not found') ||
+        text.includes('google.com/start/apps') ||
+        text.includes('Sorry, the file you have requested does not exist') ||
+        res.status === 404
+      ) {
+        throw new Error('RESTRICTED_ACCESS');
+      }
+
+      const match = text.match(/google\.visualization\.Query\.setResponse\(([\s\S]*)\);?/);
+      if (match && match[1]) {
+        const parsed = JSON.parse(match[1]);
         if (parsed?.table) {
           rawJson = parsed;
-          break;
+          activeTabName = 'Sheet1';
         }
       }
     } catch (e: any) {
@@ -218,7 +366,7 @@ export async function fetchInvestmentRecordsViaGviz(
     if (lastError.includes('RESTRICTED') || lastError.includes('404')) {
       throw new Error('RESTRICTED_ACCESS');
     }
-    throw new Error(`Tidak dapat membaca Google Sheet: ${lastError || 'Pastikan akses diubah ke Siapa saja yang memiliki link'}`);
+    throw new Error(`Tidak dapat membaca Google Sheet: ${lastError || 'Pastikan akses diubah ke "Siapa saja yang memiliki link"'}`);
   }
 
   const table = rawJson.table;
@@ -227,10 +375,10 @@ export async function fetchInvestmentRecordsViaGviz(
   // Determine if row 0 has headers (e.g. Type, Asset)
   let startIndex = 0;
   if (rows.length > 0) {
-    const c0 = rows[0]?.c?.[0]?.v || '';
-    const c1 = rows[0]?.c?.[1]?.v || '';
+    const c0 = String(rows[0]?.c?.[0]?.v || '');
+    const c1 = String(rows[0]?.c?.[1]?.v || '');
     const combined = `${c0} ${c1}`.toUpperCase();
-    if (combined.includes('TYPE') || combined.includes('ASSET')) {
+    if (combined.includes('TYPE') || combined.includes('ASSET') || combined.includes('TANGGAL') || combined.includes('DATE')) {
       startIndex = 1;
     }
   }
@@ -245,18 +393,22 @@ export async function fetchInvestmentRecordsViaGviz(
       return cell.f !== undefined && cell.f !== null ? cell.f : (cell.v !== undefined && cell.v !== null ? cell.v : '');
     };
 
-    const typeRaw = String(getVal(0) || 'BUY').trim().toUpperCase();
-    const typeStr: TradeType = typeRaw === 'SELL' ? 'SELL' : 'BUY';
+    const typeRaw = String(getVal(0) || '').trim().toUpperCase();
     const asset = String(getVal(1) || '').trim().toUpperCase();
-    if (!asset || asset === 'ASSET') continue;
-
     const nominalIdr = parseIndonesianNumber(getVal(2), { isCurrency: true });
     const kursIdrUsd = parseIndonesianNumber(getVal(3), { isKurs: true });
     const jumlah = parseIndonesianNumber(getVal(4), { isDecimal: true });
+    const entryPrice = parseIndonesianNumber(getVal(7));
+
+    // Strictly validate that this is a real investment trade (filters out TRANSPORT, empty rows, budget categories)
+    if (!isValidInvestmentTrade(typeRaw, asset, nominalIdr, jumlah, entryPrice)) {
+      continue;
+    }
+
+    const typeStr: TradeType = (typeRaw === 'SELL' || typeRaw === 'JUAL') ? 'SELL' : 'BUY';
     const entryDate = parseDateToIso(String(getVal(5) || ''));
     const exitDateRaw = String(getVal(6) || '');
     const exitDate = exitDateRaw && !exitDateRaw.includes('dd/mm/yyyy') ? parseDateToIso(exitDateRaw) : undefined;
-    const entryPrice = parseIndonesianNumber(getVal(7));
     const exitPriceRaw = getVal(8);
     const exitPrice = exitPriceRaw ? parseIndonesianNumber(exitPriceRaw) : undefined;
     const pnlPercent = parseIndonesianNumber(getVal(9), { isDecimal: true });
@@ -286,17 +438,20 @@ export async function fetchInvestmentRecordsViaGviz(
     });
   }
 
-  return { records, title: sheetName, tabExists: true };
+  return { records, title: activeTabName, tabExists: true };
 }
 
 export async function fetchInvestmentRecords(
   spreadsheetId: string,
-  accessToken?: string | null
+  accessToken?: string | null,
+  customSheetName?: string
 ): Promise<{ records: InvestmentRecord[]; title: string; tabExists: boolean }> {
   const cleanId = extractSpreadsheetId(spreadsheetId);
   if (!cleanId) {
     throw new Error('Spreadsheet ID tidak valid.');
   }
+
+  const targetTabName = customSheetName?.trim() || SHEET_NAME;
 
   // 1. If accessToken exists, try official Google Sheets v4 API
   if (accessToken) {
@@ -308,10 +463,12 @@ export async function fetchInvestmentRecords(
       if (metaRes.ok) {
         const metadata = await metaRes.json();
         const sheets: Array<{ properties: { sheetId: number; title: string } }> = metadata.sheets || [];
-        const targetSheet = sheets.find(s => s.properties.title.trim().toUpperCase() === SHEET_NAME) || sheets[0];
-        const title = targetSheet?.properties?.title || SHEET_NAME;
+        const targetSheet = sheets.find(s => s.properties.title.trim().toUpperCase() === targetTabName.toUpperCase()) ||
+          sheets.find(s => ['INVESTMENT', 'INVESTASI', 'PORTOFOLIO', 'PORTFOLIO'].includes(s.properties.title.trim().toUpperCase())) ||
+          sheets[0];
+        const title = targetSheet?.properties?.title || targetTabName;
 
-        const range = `${title}!A2:N50`;
+        const range = `${title}!A2:N100`;
         const res = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${cleanId}/values/${encodeURIComponent(range)}`, {
           headers: { Authorization: `Bearer ${accessToken}` },
         });
@@ -328,16 +485,23 @@ export async function fetchInvestmentRecords(
 
           for (let i = 0; i < rows.length; i++) {
             const row = rows[i];
-            if (!row || row.length === 0 || !row[1] || row[1].trim() === '') continue;
+            if (!row || row.length === 0 || !row[1]) continue;
 
-            const typeStr = (String(row[0] || 'BUY').trim().toUpperCase() as TradeType) || 'BUY';
+            const typeRaw = String(row[0] || '').trim().toUpperCase();
             const asset = String(row[1] || '').trim().toUpperCase();
             const nominalIdr = parseIndonesianNumber(row[2], { isCurrency: true });
             const kursIdrUsd = parseIndonesianNumber(row[3], { isKurs: true });
             const jumlah = parseIndonesianNumber(row[4], { isDecimal: true });
+            const entryPrice = parseIndonesianNumber(row[7]);
+
+            // Strictly validate real trade (filters out TRANSPORT, empty placeholder rows, budget rows)
+            if (!isValidInvestmentTrade(typeRaw, asset, nominalIdr, jumlah, entryPrice)) {
+              continue;
+            }
+
+            const typeStr: TradeType = (typeRaw === 'SELL' || typeRaw === 'JUAL') ? 'SELL' : 'BUY';
             const entryDate = parseDateToIso(String(row[5] || ''));
             const exitDate = row[6] && !String(row[6]).includes('dd/mm/yyyy') ? parseDateToIso(String(row[6])) : undefined;
-            const entryPrice = parseIndonesianNumber(row[7]);
             const exitPrice = row[8] ? parseIndonesianNumber(row[8]) : undefined;
             const pnlPercent = parseIndonesianNumber(row[9], { isDecimal: true });
             const spreadCost = parseIndonesianNumber(row[10], { isCurrency: true });
@@ -375,7 +539,7 @@ export async function fetchInvestmentRecords(
   }
 
   // 2. Effortless Zero-Auth Fallback: Fetch via Public Google Visualization API (GViz)
-  return await fetchInvestmentRecordsViaGviz(cleanId);
+  return await fetchInvestmentRecordsViaGviz(cleanId, targetTabName);
 }
 
 export async function appendInvestmentRecord(

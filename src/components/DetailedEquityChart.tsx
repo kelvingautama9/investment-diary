@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo } from 'react';
 import type { InvestmentRecord } from '../types';
+import { isNonInvestmentOrExpense } from '../services/googleSheets';
 import { Card, CardContent } from '@/components/ui/card';
 import { ChartConfig, ChartContainer, ChartTooltip } from '@/components/ui/line-charts-9';
 import { TrendingUp, TrendingDown, LineChart as LineIcon, BarChart2 } from 'lucide-react';
@@ -91,13 +92,15 @@ export const DetailedEquityChart: React.FC<DetailedEquityChartProps> = ({ record
       };
     }
 
-    // Modal Floating Aktif untuk basis perhitungan ROI
-    const activeFloatingCapital = records
+    // Modal Floating Aktif untuk basis perhitungan ROI (Strictly dropping transport/expense records)
+    const validRecords = records.filter(r => !isNonInvestmentOrExpense(r.asset) && !isNonInvestmentOrExpense(r.type));
+
+    const activeFloatingCapital = validRecords
       .filter(r => r.status === 'Floating')
       .reduce((sum, r) => sum + (r.nominalIdr || 0), 0);
 
     // 1. Data Realized diurutkan berdasarkan exitDate
-    const realizedRecords = records
+    const realizedRecords = validRecords
       .filter(r => r.status === 'Realized')
       .sort(
         (a, b) =>
@@ -105,7 +108,7 @@ export const DetailedEquityChart: React.FC<DetailedEquityChartProps> = ({ record
           new Date(b.exitDate || b.entryDate || 0).getTime()
       );
 
-    const floatingRecords = records.filter(r => r.status === 'Floating');
+    const floatingRecords = validRecords.filter(r => r.status === 'Floating');
     const floatingGain = floatingRecords.reduce((sum, r) => sum + (r.labaBersih || 0), 0);
     const realizedGain = realizedRecords.reduce((sum, r) => sum + (r.labaBersih || 0), 0);
 
@@ -156,7 +159,7 @@ export const DetailedEquityChart: React.FC<DetailedEquityChartProps> = ({ record
     }
 
     // 2. Susun data untuk Bar Chart (Histogram Laba/Rugi per Aset)
-    const sortedAll = [...records].sort((a, b) => {
+    const sortedAll = [...validRecords].sort((a, b) => {
       const dateA = new Date(a.exitDate || a.entryDate || 0).getTime();
       const dateB = new Date(b.exitDate || b.entryDate || 0).getTime();
       return dateA - dateB;

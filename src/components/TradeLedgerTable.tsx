@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import type { InvestmentRecord, TradeStatus } from '../types';
+import { isNonInvestmentOrExpense } from '../services/googleSheets';
 import {
   Plus,
   Search,
@@ -10,6 +11,7 @@ import {
   Clock,
   TrendingUp,
   TrendingDown,
+  Unlink,
 } from 'lucide-react';
 import { LiquidButton, Button } from '@/components/ui/liquid-glass-button';
 
@@ -20,6 +22,7 @@ interface TradeLedgerTableProps {
   onOpenDeleteModal: (record: InvestmentRecord) => void;
   sheetConnected: boolean;
   sheetTitle: string;
+  onDisconnectSheet?: () => void;
 }
 
 export const TradeLedgerTable: React.FC<TradeLedgerTableProps> = ({
@@ -29,12 +32,16 @@ export const TradeLedgerTable: React.FC<TradeLedgerTableProps> = ({
   onOpenDeleteModal,
   sheetConnected,
   sheetTitle,
+  onDisconnectSheet,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'ALL' | TradeStatus>('ALL');
 
   const filteredRecords = useMemo(() => {
     return records.filter(rec => {
+      // Exclude non-investment/transport expenses
+      if (isNonInvestmentOrExpense(rec.asset) || isNonInvestmentOrExpense(rec.type)) return false;
+
       const matchSearch =
         rec.asset.toLowerCase().includes(searchTerm.toLowerCase()) ||
         rec.type.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -115,6 +122,17 @@ export const TradeLedgerTable: React.FC<TradeLedgerTableProps> = ({
           <span className="px-2 py-0.5 rounded-full text-[11px] font-medium bg-blue-500/10 text-blue-400 border border-blue-500/20">
             Tab: {sheetTitle}
           </span>
+          {sheetConnected && onDisconnectSheet && (
+            <button
+              type="button"
+              onClick={onDisconnectSheet}
+              title="Putuskan koneksi Google Sheet saat ini"
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-semibold text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 transition-all"
+            >
+              <Unlink className="w-3 h-3" />
+              <span>Putuskan</span>
+            </button>
+          )}
           <span className="text-xs text-slate-400">
             ({filteredRecords.length} transaksi)
           </span>

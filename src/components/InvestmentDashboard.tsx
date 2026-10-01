@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import type { InvestmentRecord, DateFilter, DateFilterPreset, AssetSummary } from '../types';
+import { isNonInvestmentOrExpense } from '../services/googleSheets';
 import { DetailedEquityChart } from './DetailedEquityChart';
 import { AssetPerformanceHeatmap } from './AssetPerformanceHeatmap';
 import {
@@ -28,12 +29,13 @@ export const InvestmentDashboard: React.FC<InvestmentDashboardProps> = ({
   onDateFilterChange,
   onSelectAssetForChart,
 }) => {
-  // Apply date filter
+  // Apply date filter & strict non-investment filter (removes any transport/expense items)
   const filteredRecords = useMemo(() => {
     if (records.length === 0) return [];
     const now = new Date();
 
     return records.filter(rec => {
+      if (isNonInvestmentOrExpense(rec.asset) || isNonInvestmentOrExpense(rec.type)) return false;
       if (!rec.entryDate) return true;
       const recDate = new Date(rec.entryDate);
 
@@ -106,7 +108,9 @@ export const InvestmentDashboard: React.FC<InvestmentDashboardProps> = ({
 
   // Group by Asset Summary (Matching columns P:S in user spreadsheet)
   const assetSummaries: AssetSummary[] = useMemo(() => {
-    const floatingRecords = records.filter(r => r.status === 'Floating');
+    const floatingRecords = records.filter(
+      r => r.status === 'Floating' && !isNonInvestmentOrExpense(r.asset) && !isNonInvestmentOrExpense(r.type)
+    );
     const assetMap: Record<string, { totalBuyCost: number; totalQty: number; currentPrice: number; totalValIdr: number }> = {};
 
     floatingRecords.forEach(r => {

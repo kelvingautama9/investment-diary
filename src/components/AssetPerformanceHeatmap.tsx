@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo } from 'react';
 import type { InvestmentRecord } from '../types';
+import { isNonInvestmentOrExpense } from '../services/googleSheets';
 import {
   LayoutGrid,
   ChevronDown,
@@ -64,14 +65,16 @@ export const AssetPerformanceHeatmap: React.FC<AssetPerformanceHeatmapProps> = (
     return `${prefix}${Math.round(abs).toLocaleString('id-ID')}`;
   };
 
-  // Group records by Asset with Scope Filtering
+  // Group records by Asset with Scope Filtering (Strictly excluding transport/expenses)
   const { assets, totalCapitalPool, topWinner, worstLoser, winRatio, totalProfit } = useMemo(() => {
+    const validRecords = records.filter(r => !isNonInvestmentOrExpense(r.asset) && !isNonInvestmentOrExpense(r.type));
+
     const targetRecords =
       scope === 'FLOATING'
-        ? records.filter(r => r.status === 'Floating')
+        ? validRecords.filter(r => r.status === 'Floating')
         : scope === 'REALIZED'
-        ? records.filter(r => r.status === 'Realized')
-        : records;
+        ? validRecords.filter(r => r.status === 'Realized')
+        : validRecords;
 
     if (targetRecords.length === 0) {
       return {

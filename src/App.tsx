@@ -22,16 +22,16 @@ import {
   deleteInvestmentRecordRow,
   extractSpreadsheetId,
   SHEET_NAME,
+  isNonInvestmentOrExpense,
 } from './services/googleSheets';
 
 import { Header } from './components/Header';
 import { InvestmentDashboard } from './components/InvestmentDashboard';
 import { TradeLedgerTable } from './components/TradeLedgerTable';
 import { GoogleSheetSettingsPage } from './components/GoogleSheetSettingsPage';
-import { AIPopupChatbot } from './components/AIPopupChatbot';
 import { AddEditTradeModal } from './components/AddEditTradeModal';
 import { DeleteConfirmModal } from './components/DeleteConfirmModal';
-import { Globe, Copy, Check, ExternalLink, AlertTriangle, X, Settings2, Key, Link2 } from 'lucide-react';
+import { Globe, Copy, Check, ExternalLink, AlertTriangle, X, Settings2, Key, Link2, ChevronDown } from 'lucide-react';
 
 export default function App() {
   // Navigation State - only 'portfolio' and 'settings'
@@ -56,10 +56,6 @@ export default function App() {
 
   // Performance Date Filter
   const [dateFilter, setDateFilter] = useState<DateFilter>({ preset: 'ALL' });
-
-  // Sound & Push Notifications
-  const [soundEnabled, setSoundEnabled] = useState(true);
-  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
 
   // Modals
   const [isAddEditModalOpen, setIsAddEditModalOpen] = useState(false);
@@ -89,7 +85,7 @@ export default function App() {
   }, [addSyncLog]);
 
   // Sync with Google Sheets (Effortless: works WITH or WITHOUT Google Login)
-  const syncWithGoogleSheet = useCallback(async (forcedId?: string) => {
+  const syncWithGoogleSheet = useCallback(async (forcedId?: string, forcedTab?: string) => {
     const targetId = forcedId || spreadsheetId;
     if (!targetId) {
       setSheetConnected(false);
@@ -100,14 +96,18 @@ export default function App() {
     setIsSyncing(true);
     try {
       const token = await getAccessToken();
-      // fetchInvestmentRecords uses token if available, or seamlessly falls back to public GViz API
-      const res = await fetchInvestmentRecords(targetId, token);
+      const tabToFetch = forcedTab || sheetTitle;
+      const res = await fetchInvestmentRecords(targetId, token, tabToFetch);
       if (res && res.records && res.records.length > 0) {
-        setRecords(res.records);
+        // Strictly filter out any transport or non-investment expense rows
+        const cleanRecords = res.records.filter(
+          r => !isNonInvestmentOrExpense(r.asset) && !isNonInvestmentOrExpense(r.type)
+        );
+        setRecords(cleanRecords);
         setSheetTitle(res.title);
         setSheetConnected(true);
         setLastSyncTime(new Date());
-        addSyncLog(`Sinkronisasi berhasil: ${res.records.length} transaksi dimuat dari Google Sheet (${res.title}).`);
+        addSyncLog(`Sinkronisasi berhasil: ${cleanRecords.length} transaksi dimuat dari Google Sheet (${res.title}).`);
       } else if (res) {
         setRecords([]);
         setSheetTitle(res.title);
@@ -127,7 +127,7 @@ export default function App() {
     } finally {
       setIsSyncing(false);
     }
-  }, [spreadsheetId, addSyncLog]);
+  }, [spreadsheetId, sheetTitle, addSyncLog]);
 
   // Initial Sync on load or when spreadsheetId changes (Effortless: runs without needing login!)
   useEffect(() => {
@@ -148,31 +148,27 @@ export default function App() {
     return () => clearInterval(timer);
   }, [spreadsheetId, autoSyncInterval, syncWithGoogleSheet]);
 
-  // Connect Spreadsheet handler
-  const handleConnectSpreadsheet = async (newSheetId: string) => {
-    setSpreadsheetId(newSheetId);
-    localStorage.setItem('apex_connected_sheet_id', newSheetId);
-    addSyncLog(`ID Spreadsheet diatur ke: ${newSheetId}`);
+  // Connect Spreadsheet handler (Works with or without token!)
+  const handleConnectSpreadsheet = async (newSheetId: string, customTabName?: string) => {
+    const cleanId = extractSpreadsheetId(newSheetId);
+    if (!cleanId) return;
 
-    const token = await getAccessToken();
-    if (token) {
-      setIsSyncing(true);
-      try {
-        const res = await fetchInvestmentRecords(newSheetId, token);
-        if (res && res.records) {
-          setRecords(res.records);
-          setSheetTitle(res.title);
-          setSheetConnected(true);
-          setLastSyncTime(new Date());
-          addSyncLog(`Berhasil terhubung ke Google Sheet. Memuat ${res.records.length} data posisi.`);
-        }
-      } catch (err: any) {
-        addSyncLog(`Error menghubungkan sheet: ${err?.message || 'Akses ditolak'}`);
-        alert('Gagal menghubungkan Google Sheet. Pastikan ID valid dan izin telah diberikan.');
-      } finally {
-        setIsSyncing(false);
-      }
+    setSpreadsheetId(cleanId);
+    if (customTabName) {
+      setSheetTitle(customTabName);
     }
+    localStorage.setItem('apex_connected_sheet_id', cleanId);
+    addSyncLog(`ID Spreadsheet diatur ke: ${cleanId}`);
+
+    await syncWithGoogleSheet(cleanId, customTabName);
+  };
+
+  const handleDisconnectSpreadsheet = () => {
+    setSpreadsheetId('');
+    localStorage.removeItem('apex_connected_sheet_id');
+    setSheetConnected(false);
+    setRecords([]);
+    addSyncLog('Google Sheet berhasil diputuskan. Seluruh angka dan portofolio diatur ke 0.');
   };
 
   // Google Login / Logout
@@ -358,12 +354,10 @@ export default function App() {
         sheetTitle={sheetTitle}
         spreadsheetId={spreadsheetId}
         isSyncing={isSyncing}
-        onManualSync={syncWithGoogleSheet}
+        onManualSync={() => syncWithGoogleSheet()}
+        onDisconnectSheet={handleDisconnectSpreadsheet}
+        onConnectSheet={handleConnectSpreadsheet}
         lastSyncTime={lastSyncTime}
-        soundEnabled={soundEnabled}
-        setSoundEnabled={setSoundEnabled}
-        notificationsEnabled={notificationsEnabled}
-        setNotificationsEnabled={setNotificationsEnabled}
       />
 
       {/* 2. Main Page Content */}
@@ -393,6 +387,7 @@ export default function App() {
               }}
               sheetConnected={sheetConnected}
               sheetTitle={sheetTitle}
+              onDisconnectSheet={handleDisconnectSpreadsheet}
             />
           </div>
         )}
@@ -402,6 +397,7 @@ export default function App() {
           <GoogleSheetSettingsPage
             spreadsheetId={spreadsheetId}
             onConnectSpreadsheet={handleConnectSpreadsheet}
+            onDisconnectSpreadsheet={handleDisconnectSpreadsheet}
             accessToken={accessToken}
             sheetConnected={sheetConnected}
             sheetTitle={sheetTitle}
@@ -413,13 +409,6 @@ export default function App() {
           />
         )}
       </main>
-
-      {/* 3. Floating Popup AI Assistant */}
-      <AIPopupChatbot
-        records={records}
-        activeSignal={null}
-        sheetTitle={sheetTitle}
-      />
 
       {/* 4. Add / Edit Trade Modal */}
       <AddEditTradeModal
@@ -445,14 +434,14 @@ export default function App() {
         isDeleting={isDeleting}
       />
 
-      {/* 6. Unauthorized Domain Alert Modal (Vercel / GitHub Pages) */}
+      {/* 6. Unauthorized Domain Alert Modal (Compact with Dropdown Menu) */}
       {unauthorizedDomain && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in">
-          <div className="w-full max-w-lg bg-[#10141f] border border-[#1b2234] rounded-2xl p-6 shadow-2xl space-y-4 text-left select-none">
-            <div className="flex items-center justify-between pb-3 border-b border-white/10">
-              <div className="flex items-center gap-2.5 text-amber-400">
-                <AlertTriangle className="w-5 h-5 shrink-0" />
-                <h3 className="text-sm font-bold text-white">Domain Belum Diizinkan di Firebase Console</h3>
+          <div className="w-full max-w-md bg-[#10141f] border border-[#1b2234] rounded-2xl p-5 shadow-2xl space-y-3.5 text-left select-none max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-2.5 border-b border-white/10">
+              <div className="flex items-center gap-2 text-amber-400">
+                <AlertTriangle className="w-4 h-4 shrink-0" />
+                <h3 className="text-xs font-bold text-white">Login Google Terkendala Domain</h3>
               </div>
               <button
                 type="button"
@@ -463,136 +452,119 @@ export default function App() {
               </button>
             </div>
 
-            <p className="text-xs text-slate-300 leading-relaxed">
-              Google memblokir login OAuth karena domain website Anda saat ini (<strong>Vercel / GitHub Pages</strong>) belum didaftarkan ke daftar <em>Authorized Domains</em> di Firebase Console.
-            </p>
-
-            <div className="flex items-center justify-between p-2.5 rounded-xl bg-white/5 border border-white/10 text-xs">
-              <span className="text-slate-400">Project Firebase aktif web ini:</span>
-              <span className="font-mono font-bold text-amber-300 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
-                {activeFirebaseProjectId}
+            {/* Effortless Recommendation Banner */}
+            <div className="p-3.5 rounded-xl bg-blue-600/15 border border-blue-500/30 text-xs space-y-2">
+              <span className="font-bold text-blue-300 block flex items-center gap-1.5">
+                <Link2 className="w-3.5 h-3.5" />
+                <span>Solusi 1-Klik Paling Effortless (Tanpa Perlu Login):</span>
               </span>
-            </div>
-
-            <div className="space-y-1.5">
-              <span className="text-[11px] font-semibold text-slate-400 block">Domain yang harus didaftarkan:</span>
-              <div className="flex items-center gap-2 p-2.5 rounded-xl bg-[#0b0e17] border border-[#1e273d]">
-                <code className="text-xs font-mono text-emerald-400 font-bold flex-1 truncate">
-                  {unauthorizedDomain}
-                </code>
-                <button
-                  type="button"
-                  onClick={() => {
-                    navigator.clipboard.writeText(unauthorizedDomain);
-                    setCopiedModalDomain(true);
-                    setTimeout(() => setCopiedModalDomain(false), 2000);
-                  }}
-                  className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/15 text-slate-200 text-xs font-medium transition-all flex items-center gap-1.5"
-                >
-                  {copiedModalDomain ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                  <span>{copiedModalDomain ? 'Tersalin!' : 'Salin Domain'}</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Why not changed explanation */}
-            <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-200 space-y-1">
-              <div className="font-bold flex items-center gap-1.5 text-amber-300">
-                <span>Sudah add domain tapi status tidak berubah?</span>
-              </div>
               <p className="text-[11px] text-slate-300 leading-relaxed">
-                Jika Anda menambahkan domain ini ke <strong>Project Firebase milik Anda sendiri</strong> (berbeda dari <code>{activeFirebaseProjectId}</code>), masukkan konfigurasi Firebase Anda di bawah ini agar web terhubung ke project Anda:
+                Anda <strong>tidak wajib login</strong> untuk membaca & merekap Google Sheet! Cukup buka menu <strong>Koneksi Sheet</strong>, tempel link Google Sheet Anda, dan klik <strong>Hubungkan Sheet</strong>.
               </p>
-            </div>
-
-            {/* Expandable BYOF Form */}
-            <div className="space-y-2">
-              <button
-                type="button"
-                onClick={() => setShowByofInput(!showByofInput)}
-                className="text-xs font-semibold text-blue-400 hover:text-blue-300 flex items-center gap-1.5"
-              >
-                <Settings2 className="w-3.5 h-3.5" />
-                <span>{showByofInput ? 'Tutup Form Konfigurasi Firebase' : 'Hubungkan Project Firebase Milik Anda Sendiri (BYOF)'}</span>
-              </button>
-
-              {showByofInput && (
-                <div className="p-3 rounded-xl bg-[#0b0e17] border border-[#1e273d] space-y-2 text-xs">
-                  <label className="text-[11px] font-semibold text-slate-400 block">
-                    Tempel Config Firebase Web (dari Firebase Console &gt; Project Settings &gt; General &gt; Your Apps):
-                  </label>
-                  <textarea
-                    rows={4}
-                    value={byofConfigInput}
-                    onChange={e => setByofConfigInput(e.target.value)}
-                    placeholder='{"apiKey": "AIzaSy...", "authDomain": "my-app.firebaseapp.com", "projectId": "my-app", "appId": "..."}'
-                    className="w-full bg-[#070a10] border border-[#1e273d] rounded-xl p-2.5 text-xs text-white font-mono placeholder:text-slate-600 focus:outline-none focus:border-blue-500"
-                  />
-                  {byofError && <p className="text-[11px] text-rose-400">{byofError}</p>}
-                  <div className="flex items-center justify-between pt-1">
-                    {isUsingCustomFirebase ? (
-                      <button
-                        type="button"
-                        onClick={clearCustomFirebaseConfig}
-                        className="text-xs text-rose-400 hover:text-rose-300 underline"
-                      >
-                        Reset ke Project Default
-                      </button>
-                    ) : <span />}
-                    <button
-                      type="button"
-                      onClick={handleSaveByof}
-                      disabled={!byofConfigInput.trim()}
-                      className="px-3.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-bold text-xs shadow-md"
-                    >
-                      Terapkan Project Saya
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div className="p-3.5 rounded-xl bg-blue-500/10 border border-blue-500/20 text-xs text-slate-300 space-y-2">
-              <span className="font-semibold text-blue-300 block">Langkah di Firebase Console:</span>
-              <ol className="list-decimal pl-4 space-y-1.5 text-[11px] text-slate-300">
-                <li>Buka <a href="https://console.firebase.google.com/" target="_blank" rel="noreferrer" className="text-blue-400 underline font-semibold inline-flex items-center gap-0.5">Firebase Console <ExternalLink className="w-2.5 h-2.5 inline" /></a> &gt; Pilih proyek Anda.</li>
-                <li>Masuk ke menu <strong>Authentication</strong> &gt; Tab <strong>Settings</strong> &gt; Gulir ke <strong>Authorized Domains</strong>.</li>
-                <li>Klik <strong>Add Domain</strong>, tempelkan domain Anda di atas (<code>{unauthorizedDomain}</code>), lalu klik <strong>Save</strong>.</li>
-              </ol>
-            </div>
-
-            <div className="flex items-center justify-between gap-2 pt-2 border-t border-white/10">
               <button
                 type="button"
                 onClick={() => {
                   setUnauthorizedDomain(null);
                   setActivePage('settings');
                 }}
-                className="text-xs text-blue-400 hover:text-blue-300 underline"
+                className="w-full py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-md transition-all flex items-center justify-center gap-1.5 mt-1"
               >
-                Gunakan Token Manual di Pengaturan
+                <span>Buka Menu Koneksi Sheet Sekarang ↗</span>
               </button>
+            </div>
 
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => handleLogin(true)}
-                  className="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-slate-200 text-xs font-semibold transition-all"
-                  title="Coba redirect jika popup diblokir"
-                >
-                  Coba Redirect
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setUnauthorizedDomain(null);
-                    handleLogin(false);
-                  }}
-                  className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition-all shadow-md"
-                >
-                  Coba Login Lagi
-                </button>
+            {/* Compact Collapsible Dropdown for Advanced Settings */}
+            <details className="group p-3 rounded-xl bg-white/5 border border-white/10 text-xs space-y-2.5">
+              <summary className="cursor-pointer font-semibold text-slate-300 flex items-center justify-between list-none select-none">
+                <span className="flex items-center gap-1.5 text-slate-300">
+                  <Settings2 className="w-3.5 h-3.5 text-slate-400" />
+                  <span>Pengaturan Lanjutan Firebase (Opsional)</span>
+                </span>
+                <ChevronDown className="w-3.5 h-3.5 text-slate-400 group-open:rotate-180 transition-transform" />
+              </summary>
+
+              <div className="pt-2.5 border-t border-white/10 space-y-2.5 mt-2">
+                <div className="flex items-center justify-between text-[11px]">
+                  <span className="text-slate-400">Project Firebase aktif:</span>
+                  <span className="font-mono text-amber-300 font-bold bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
+                    {activeFirebaseProjectId}
+                  </span>
+                </div>
+
+                <div className="space-y-1">
+                  <span className="text-[11px] text-slate-400 block font-medium">Domain yang harus didaftarkan di Firebase:</span>
+                  <div className="flex items-center gap-2 p-2 rounded-xl bg-[#0b0e17] border border-[#1e273d]">
+                    <code className="text-xs font-mono text-emerald-400 font-bold flex-1 truncate">
+                      {unauthorizedDomain}
+                    </code>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard.writeText(unauthorizedDomain);
+                        setCopiedModalDomain(true);
+                        setTimeout(() => setCopiedModalDomain(false), 2000);
+                      }}
+                      className="px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/15 text-slate-200 text-xs font-medium transition-all flex items-center gap-1 shrink-0"
+                    >
+                      {copiedModalDomain ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                      <span>{copiedModalDomain ? 'Tersalin' : 'Salin'}</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="p-2.5 rounded-xl bg-[#0b0e17] border border-[#1e273d] space-y-2">
+                  <label className="text-[11px] font-semibold text-slate-400 block">
+                    Hubungkan Project Firebase Milik Anda (BYOF):
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={byofConfigInput}
+                    onChange={e => setByofConfigInput(e.target.value)}
+                    placeholder='{"apiKey": "...", "projectId": "...", "authDomain": "..."}'
+                    className="w-full bg-[#070a10] border border-[#1e273d] rounded-xl p-2 text-xs text-white font-mono placeholder:text-slate-600 focus:outline-none focus:border-blue-500"
+                  />
+                  {byofError && <p className="text-[10px] text-rose-400">{byofError}</p>}
+                  <div className="flex items-center justify-between">
+                    {isUsingCustomFirebase ? (
+                      <button
+                        type="button"
+                        onClick={clearCustomFirebaseConfig}
+                        className="text-[11px] text-rose-400 hover:text-rose-300 underline"
+                      >
+                        Reset ke Default
+                      </button>
+                    ) : <span />}
+                    <button
+                      type="button"
+                      onClick={handleSaveByof}
+                      disabled={!byofConfigInput.trim()}
+                      className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-bold text-xs"
+                    >
+                      Simpan Config
+                    </button>
+                  </div>
+                </div>
               </div>
+            </details>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-white/10">
+              <button
+                type="button"
+                onClick={() => setUnauthorizedDomain(null)}
+                className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/15 text-slate-300 text-xs font-semibold transition-all"
+              >
+                Tutup
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setUnauthorizedDomain(null);
+                  handleLogin(false);
+                }}
+                className="px-4 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition-all shadow-md"
+              >
+                Coba Login Lagi
+              </button>
             </div>
           </div>
         </div>
