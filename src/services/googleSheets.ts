@@ -162,64 +162,109 @@ function parseDateToIso(dateStr: string): string {
   return dateStr;
 }
 
-export async function fetchInvestmentRecords(
+// Zero-Auth Public Google Sheet Fetcher via GViz API (Requires ZERO login, ZERO Firebase, ZERO setup)
+export async function fetchInvestmentRecordsViaGviz(
   spreadsheetId: string,
-  accessToken: string
+  sheetName: string = SHEET_NAME
 ): Promise<{ records: InvestmentRecord[]; title: string; tabExists: boolean }> {
-  // Fetch metadata first to locate INVESTMENT tab
-  const metaRes = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}`, {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
-
-  if (!metaRes.ok) {
-    const errorText = await metaRes.text();
-    throw new Error(`Failed to access spreadsheet: ${metaRes.status} ${errorText}`);
+  const cleanId = extractSpreadsheetId(spreadsheetId);
+  if (!cleanId) {
+    throw new Error('ID Spreadsheet tidak valid.');
   }
 
-  const metadata = await metaRes.json();
-  const sheets: Array<{ properties: { sheetId: number; title: string } }> = metadata.sheets || [];
+  const urls = [
+    `https://docs.google.com/spreadsheets/d/${cleanId}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(sheetName)}`,
+    `https://docs.google.com/spreadsheets/d/${cleanId}/gviz/tq?tqx=out:json`,
+  ];
 
-  const targetSheet = sheets.find(s => s.properties.title.trim().toUpperCase() === SHEET_NAME) || sheets[0];
-  const title = targetSheet?.properties?.title || SHEET_NAME;
+  let rawJson: any = null;
+  let lastError = '';
 
-  // Fetch range A2:N50 (the user's INVESTMENT table)
-  const range = `${title}!A2:N50`;
-  const res = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(range)}`, {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
+  for (const url of urls) {
+    try {
+      const res = await fetch(url);
+      const text = await res.text();
 
-  if (!res.ok) {
-    throw new Error(`Failed to read sheet data: ${await res.text()}`);
+      // Check if Google returned restricted / 404 access
+      if (
+        text.includes('Page not found') ||
+        text.includes('google.com/start/apps') ||
+        text.includes('Sorry, the file you have requested does not exist') ||
+        res.status === 404
+      ) {
+        throw new Error('RESTRICTED_ACCESS');
+      }
+
+      // Extract JSON from Google's setResponse wrapper
+      const match = text.match(/google\.visualization\.Query\.setResponse\(([\s\S]*)\);?/);
+      if (match && match[1]) {
+        const parsed = JSON.parse(match[1]);
+        if (parsed?.status === 'error') {
+          lastError = parsed.errors?.[0]?.message || 'Query error';
+          continue;
+        }
+        if (parsed?.table) {
+          rawJson = parsed;
+          break;
+        }
+      }
+    } catch (e: any) {
+      if (e?.message === 'RESTRICTED_ACCESS') throw e;
+      lastError = e?.message || 'Network error';
+    }
   }
 
-  const data = await res.json();
-  const rows: any[][] = data.values || [];
+  if (!rawJson?.table) {
+    if (lastError.includes('RESTRICTED') || lastError.includes('404')) {
+      throw new Error('RESTRICTED_ACCESS');
+    }
+    throw new Error(`Tidak dapat membaca Google Sheet: ${lastError || 'Pastikan akses diubah ke Siapa saja yang memiliki link'}`);
+  }
 
-  if (rows.length === 0) {
-    return { records: [], title, tabExists: true };
+  const table = rawJson.table;
+  const rows = table.rows || [];
+
+  // Determine if row 0 has headers (e.g. Type, Asset)
+  let startIndex = 0;
+  if (rows.length > 0) {
+    const c0 = rows[0]?.c?.[0]?.v || '';
+    const c1 = rows[0]?.c?.[1]?.v || '';
+    const combined = `${c0} ${c1}`.toUpperCase();
+    if (combined.includes('TYPE') || combined.includes('ASSET')) {
+      startIndex = 1;
+    }
   }
 
   const records: InvestmentRecord[] = [];
 
-  for (let i = 0; i < rows.length; i++) {
-    const row = rows[i];
-    if (!row || row.length === 0 || !row[1] || row[1].trim() === '') continue; // Skip empty rows or empty asset
+  for (let i = startIndex; i < rows.length; i++) {
+    const c = rows[i]?.c || [];
+    const getVal = (idx: number) => {
+      const cell = c[idx];
+      if (!cell) return '';
+      return cell.f !== undefined && cell.f !== null ? cell.f : (cell.v !== undefined && cell.v !== null ? cell.v : '');
+    };
 
-    const typeStr = (String(row[0] || 'BUY').trim().toUpperCase() as TradeType) || 'BUY';
-    const asset = String(row[1] || '').trim().toUpperCase();
-    const nominalIdr = parseIndonesianNumber(row[2], { isCurrency: true });
-    const kursIdrUsd = parseIndonesianNumber(row[3], { isKurs: true });
-    const jumlah = parseIndonesianNumber(row[4], { isDecimal: true });
-    const entryDate = parseDateToIso(String(row[5] || ''));
-    const exitDate = row[6] && !String(row[6]).includes('dd/mm/yyyy') ? parseDateToIso(String(row[6])) : undefined;
-    const entryPrice = parseIndonesianNumber(row[7]);
-    const exitPrice = row[8] ? parseIndonesianNumber(row[8]) : undefined;
-    const pnlPercent = parseIndonesianNumber(row[9], { isDecimal: true });
-    const spreadCost = parseIndonesianNumber(row[10], { isCurrency: true });
-    const labaBersih = parseIndonesianNumber(row[11], { isCurrency: true });
-    const rawStatus = String(row[12] || '').trim();
+    const typeRaw = String(getVal(0) || 'BUY').trim().toUpperCase();
+    const typeStr: TradeType = typeRaw === 'SELL' ? 'SELL' : 'BUY';
+    const asset = String(getVal(1) || '').trim().toUpperCase();
+    if (!asset || asset === 'ASSET') continue;
+
+    const nominalIdr = parseIndonesianNumber(getVal(2), { isCurrency: true });
+    const kursIdrUsd = parseIndonesianNumber(getVal(3), { isKurs: true });
+    const jumlah = parseIndonesianNumber(getVal(4), { isDecimal: true });
+    const entryDate = parseDateToIso(String(getVal(5) || ''));
+    const exitDateRaw = String(getVal(6) || '');
+    const exitDate = exitDateRaw && !exitDateRaw.includes('dd/mm/yyyy') ? parseDateToIso(exitDateRaw) : undefined;
+    const entryPrice = parseIndonesianNumber(getVal(7));
+    const exitPriceRaw = getVal(8);
+    const exitPrice = exitPriceRaw ? parseIndonesianNumber(exitPriceRaw) : undefined;
+    const pnlPercent = parseIndonesianNumber(getVal(9), { isDecimal: true });
+    const spreadCost = parseIndonesianNumber(getVal(10), { isCurrency: true });
+    const labaBersih = parseIndonesianNumber(getVal(11), { isCurrency: true });
+    const rawStatus = String(getVal(12) || '').trim();
     const status: TradeStatus = rawStatus.toLowerCase().includes('realized') ? 'Realized' : 'Floating';
-    const nilaiAset = parseIndonesianNumber(row[13], { isCurrency: true });
+    const nilaiAset = parseIndonesianNumber(getVal(13), { isCurrency: true });
 
     records.push({
       id: `ROW-${i + 2}`,
@@ -241,7 +286,96 @@ export async function fetchInvestmentRecords(
     });
   }
 
-  return { records, title, tabExists: true };
+  return { records, title: sheetName, tabExists: true };
+}
+
+export async function fetchInvestmentRecords(
+  spreadsheetId: string,
+  accessToken?: string | null
+): Promise<{ records: InvestmentRecord[]; title: string; tabExists: boolean }> {
+  const cleanId = extractSpreadsheetId(spreadsheetId);
+  if (!cleanId) {
+    throw new Error('Spreadsheet ID tidak valid.');
+  }
+
+  // 1. If accessToken exists, try official Google Sheets v4 API
+  if (accessToken) {
+    try {
+      const metaRes = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${cleanId}`, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+
+      if (metaRes.ok) {
+        const metadata = await metaRes.json();
+        const sheets: Array<{ properties: { sheetId: number; title: string } }> = metadata.sheets || [];
+        const targetSheet = sheets.find(s => s.properties.title.trim().toUpperCase() === SHEET_NAME) || sheets[0];
+        const title = targetSheet?.properties?.title || SHEET_NAME;
+
+        const range = `${title}!A2:N50`;
+        const res = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${cleanId}/values/${encodeURIComponent(range)}`, {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          const rows: any[][] = data.values || [];
+
+          if (rows.length === 0) {
+            return { records: [], title, tabExists: true };
+          }
+
+          const records: InvestmentRecord[] = [];
+
+          for (let i = 0; i < rows.length; i++) {
+            const row = rows[i];
+            if (!row || row.length === 0 || !row[1] || row[1].trim() === '') continue;
+
+            const typeStr = (String(row[0] || 'BUY').trim().toUpperCase() as TradeType) || 'BUY';
+            const asset = String(row[1] || '').trim().toUpperCase();
+            const nominalIdr = parseIndonesianNumber(row[2], { isCurrency: true });
+            const kursIdrUsd = parseIndonesianNumber(row[3], { isKurs: true });
+            const jumlah = parseIndonesianNumber(row[4], { isDecimal: true });
+            const entryDate = parseDateToIso(String(row[5] || ''));
+            const exitDate = row[6] && !String(row[6]).includes('dd/mm/yyyy') ? parseDateToIso(String(row[6])) : undefined;
+            const entryPrice = parseIndonesianNumber(row[7]);
+            const exitPrice = row[8] ? parseIndonesianNumber(row[8]) : undefined;
+            const pnlPercent = parseIndonesianNumber(row[9], { isDecimal: true });
+            const spreadCost = parseIndonesianNumber(row[10], { isCurrency: true });
+            const labaBersih = parseIndonesianNumber(row[11], { isCurrency: true });
+            const rawStatus = String(row[12] || '').trim();
+            const status: TradeStatus = rawStatus.toLowerCase().includes('realized') ? 'Realized' : 'Floating';
+            const nilaiAset = parseIndonesianNumber(row[13], { isCurrency: true });
+
+            records.push({
+              id: `ROW-${i + 2}`,
+              rowNumber: i + 2,
+              type: typeStr,
+              asset,
+              nominalIdr,
+              kursIdrUsd,
+              jumlah,
+              entryDate,
+              exitDate,
+              entryPrice,
+              exitPrice,
+              pnlPercent,
+              spreadCost,
+              labaBersih,
+              status,
+              nilaiAset,
+            });
+          }
+
+          return { records, title, tabExists: true };
+        }
+      }
+    } catch (err) {
+      console.warn('Google v4 API error, falling back to public GViz fetcher:', err);
+    }
+  }
+
+  // 2. Effortless Zero-Auth Fallback: Fetch via Public Google Visualization API (GViz)
+  return await fetchInvestmentRecordsViaGviz(cleanId);
 }
 
 export async function appendInvestmentRecord(

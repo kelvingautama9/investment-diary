@@ -20,6 +20,7 @@ import {
   appendInvestmentRecord,
   updateInvestmentRecord,
   deleteInvestmentRecordRow,
+  extractSpreadsheetId,
   SHEET_NAME,
 } from './services/googleSheets';
 
@@ -30,7 +31,7 @@ import { GoogleSheetSettingsPage } from './components/GoogleSheetSettingsPage';
 import { AIPopupChatbot } from './components/AIPopupChatbot';
 import { AddEditTradeModal } from './components/AddEditTradeModal';
 import { DeleteConfirmModal } from './components/DeleteConfirmModal';
-import { Globe, Copy, Check, ExternalLink, AlertTriangle, X, Settings2, Key } from 'lucide-react';
+import { Globe, Copy, Check, ExternalLink, AlertTriangle, X, Settings2, Key, Link2 } from 'lucide-react';
 
 export default function App() {
   // Navigation State - only 'portfolio' and 'settings'
@@ -44,7 +45,7 @@ export default function App() {
   // Google Sheet Data State (Defaults to empty array and 0 metrics when disconnected)
   const [records, setRecords] = useState<InvestmentRecord[]>([]);
   const [spreadsheetId, setSpreadsheetId] = useState<string>(() => {
-    return localStorage.getItem('apex_connected_sheet_id') || '';
+    return localStorage.getItem('apex_connected_sheet_id') || '1zHROHuGIcJm63bpVLpJoaIXmp00gHRdR6Sc2nf_E_7E';
   });
   const [sheetConnected, setSheetConnected] = useState<boolean>(false);
   const [sheetTitle, setSheetTitle] = useState<string>(SHEET_NAME);
@@ -87,16 +88,10 @@ export default function App() {
     );
   }, [addSyncLog]);
 
-  // Sync with Google Sheets
-  const syncWithGoogleSheet = useCallback(async () => {
-    if (!spreadsheetId) {
-      setSheetConnected(false);
-      setRecords([]);
-      return;
-    }
-
-    const token = await getAccessToken();
-    if (!token) {
+  // Sync with Google Sheets (Effortless: works WITH or WITHOUT Google Login)
+  const syncWithGoogleSheet = useCallback(async (forcedId?: string) => {
+    const targetId = forcedId || spreadsheetId;
+    if (!targetId) {
       setSheetConnected(false);
       setRecords([]);
       return;
@@ -104,13 +99,15 @@ export default function App() {
 
     setIsSyncing(true);
     try {
-      const res = await fetchInvestmentRecords(spreadsheetId, token);
+      const token = await getAccessToken();
+      // fetchInvestmentRecords uses token if available, or seamlessly falls back to public GViz API
+      const res = await fetchInvestmentRecords(targetId, token);
       if (res && res.records && res.records.length > 0) {
         setRecords(res.records);
         setSheetTitle(res.title);
         setSheetConnected(true);
         setLastSyncTime(new Date());
-        addSyncLog(`Sinkronisasi berhasil: ${res.records.length} transaksi dimuat dari Google Sheet.`);
+        addSyncLog(`Sinkronisasi berhasil: ${res.records.length} transaksi dimuat dari Google Sheet (${res.title}).`);
       } else if (res) {
         setRecords([]);
         setSheetTitle(res.title);
@@ -122,22 +119,26 @@ export default function App() {
       console.warn('Sync warning:', err);
       setSheetConnected(false);
       setRecords([]);
-      addSyncLog(`Sinkronisasi tertunda: ${err?.message || 'Memeriksa akses Google Sheet'}`);
+      if (err?.message === 'RESTRICTED_ACCESS') {
+        addSyncLog('Google Sheet masih Dibatasi. Di Google Sheet klik "Bagikan" > ubah ke "Siapa saja yang memiliki link".');
+      } else {
+        addSyncLog(`Sinkronisasi tertunda: ${err?.message || 'Memeriksa akses Google Sheet'}`);
+      }
     } finally {
       setIsSyncing(false);
     }
   }, [spreadsheetId, addSyncLog]);
 
-  // Initial Sync when token or spreadsheetId changes
+  // Initial Sync on load or when spreadsheetId changes (Effortless: runs without needing login!)
   useEffect(() => {
-    if (accessToken && spreadsheetId) {
+    if (spreadsheetId) {
       syncWithGoogleSheet();
     }
-  }, [accessToken, spreadsheetId, syncWithGoogleSheet]);
+  }, [spreadsheetId, syncWithGoogleSheet]);
 
   // Auto-sync polling
   useEffect(() => {
-    if (!accessToken || !spreadsheetId || autoSyncInterval <= 0) return;
+    if (!spreadsheetId || autoSyncInterval <= 0) return;
 
     const intervalMs = autoSyncInterval * 1000;
     const timer = setInterval(() => {
@@ -145,7 +146,7 @@ export default function App() {
     }, intervalMs);
 
     return () => clearInterval(timer);
-  }, [accessToken, spreadsheetId, autoSyncInterval, syncWithGoogleSheet]);
+  }, [spreadsheetId, autoSyncInterval, syncWithGoogleSheet]);
 
   // Connect Spreadsheet handler
   const handleConnectSpreadsheet = async (newSheetId: string) => {
@@ -184,6 +185,25 @@ export default function App() {
   const handleSaveByof = () => {
     setByofError(null);
     if (!byofConfigInput.trim()) return;
+
+    // Smart detection: If user accidentally pasted their Google Sheet link here (like in screenshot)
+    if (
+      byofConfigInput.includes('docs.google.com') ||
+      byofConfigInput.includes('spreadsheets') ||
+      byofConfigInput.includes('/d/')
+    ) {
+      const extracted = extractSpreadsheetId(byofConfigInput);
+      if (extracted) {
+        setSpreadsheetId(extracted);
+        localStorage.setItem('apex_connected_sheet_id', extracted);
+        setShowByofInput(false);
+        setByofConfigInput('');
+        setUnauthorizedDomain(null);
+        addSyncLog(`Link Google Sheet terdeteksi! Mengkoneksikan ke spreadsheet ${extracted}...`);
+        syncWithGoogleSheet(extracted);
+        return;
+      }
+    }
 
     try {
       let cfg: any = null;

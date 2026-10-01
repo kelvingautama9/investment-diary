@@ -87,6 +87,21 @@ export const GoogleSheetSettingsPage: React.FC<GoogleSheetSettingsPageProps> = (
     setByofError(null);
     if (!byofConfigInput.trim()) return;
 
+    // Smart detection: If user accidentally pasted their Google Sheet link here (like in image.png!)
+    if (
+      byofConfigInput.includes('docs.google.com') ||
+      byofConfigInput.includes('spreadsheets') ||
+      byofConfigInput.includes('/d/')
+    ) {
+      const extracted = extractSpreadsheetId(byofConfigInput);
+      if (extracted) {
+        setInputUrl(extracted);
+        setByofConfigInput('');
+        handleConnect(extracted);
+        return;
+      }
+    }
+
     try {
       let cfg: any = null;
       try {
@@ -126,7 +141,7 @@ export const GoogleSheetSettingsPage: React.FC<GoogleSheetSettingsPageProps> = (
   };
 
   useEffect(() => {
-    setInputUrl(spreadsheetId);
+    setInputUrl(spreadsheetId || '1zHROHuGIcJm63bpVLpJoaIXmp00gHRdR6Sc2nf_E_7E');
   }, [spreadsheetId]);
 
   const handleConnect = async (targetId?: string) => {
@@ -139,15 +154,21 @@ export const GoogleSheetSettingsPage: React.FC<GoogleSheetSettingsPageProps> = (
       return;
     }
 
-    setStatusMessage('Memeriksa Google Sheet dan memverifikasi tab INVESTMENT...');
+    setStatusMessage('Memeriksa Google Sheet dan memuat data transaksi...');
     setIsError(false);
 
     try {
       await onConnectSpreadsheet(cleanId);
-      setStatusMessage(`Berhasil tersambung! Tab "${sheetTitle}" telah tersinkronisasi dua arah secara real-time.`);
+      setStatusMessage(`Berhasil tersambung! Tab "${sheetTitle}" telah tersinkronisasi.`);
     } catch (err: any) {
       setIsError(true);
-      setStatusMessage(`Gagal menyambungkan: ${err?.message || 'Tidak dapat membaca spreadsheet'}`);
+      if (err?.message === 'RESTRICTED_ACCESS') {
+        setStatusMessage(
+          'Spreadsheet Anda masih berstatus "Dibatasi" oleh Google Drive. Agar dapat dibaca otomatis tanpa login: buka Google Sheet Anda > klik Bagikan di pojok kanan atas > ubah Dibatasi menjadi "Siapa saja yang memiliki link" > klik Selesai > lalu klik Hubungkan Sheet lagi.'
+        );
+      } else {
+        setStatusMessage(`Gagal menyambungkan: ${err?.message || 'Tidak dapat membaca spreadsheet'}`);
+      }
     }
   };
 
@@ -219,6 +240,29 @@ export const GoogleSheetSettingsPage: React.FC<GoogleSheetSettingsPageProps> = (
           >
             {isError ? <AlertCircle className="w-4 h-4 shrink-0" /> : <CheckCircle2 className="w-4 h-4 shrink-0" />}
             <span>{statusMessage}</span>
+          </div>
+        )}
+
+        {isError && statusMessage?.includes('Dibatasi') && (
+          <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs text-amber-200 space-y-2.5">
+            <span className="font-bold text-amber-300 block flex items-center gap-1.5">
+              <span>💡 Solusi 10 Detik (Agar Terhubung Otomatis &amp; Effortless Tanpa Perlu Login):</span>
+            </span>
+            <ol className="list-decimal pl-4 space-y-1.5 text-[11px] text-slate-300">
+              <li>
+                <a
+                  href={`https://docs.google.com/spreadsheets/d/${spreadsheetId || '1zHROHuGIcJm63bpVLpJoaIXmp00gHRdR6Sc2nf_E_7E'}/edit`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-blue-400 font-bold underline inline-flex items-center gap-1 hover:text-blue-300"
+                >
+                  Klik di sini untuk buka Google Sheet Anda <ExternalLink className="w-3 h-3 inline" />
+                </a>
+              </li>
+              <li>Klik tombol <strong>"Bagikan" (Share)</strong> di pojok kanan atas spreadsheet Anda.</li>
+              <li>Pada bagian <em>Akses Umum</em>, ubah dari <strong>"Dibatasi"</strong> menjadi <strong>"Siapa saja yang memiliki link" (Anyone with the link can view)</strong>.</li>
+              <li>Klik <strong>Selesai</strong>, lalu klik tombol biru <strong>"Hubungkan Sheet"</strong> di bawah!</li>
+            </ol>
           </div>
         )}
       </div>
