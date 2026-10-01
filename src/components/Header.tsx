@@ -81,8 +81,12 @@ export const Header: React.FC<HeaderProps> = ({
         {/* Brand & Clean Logo */}
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2.5">
-            <div className="relative w-8 h-8 rounded-xl bg-blue-600/40 backdrop-blur-md border border-blue-400/50 text-white flex items-center justify-center font-bold text-sm shadow-[0_4px_16px_rgba(37,99,235,0.4),inset_0_1px_1.5px_rgba(255,255,255,0.6)]">
-              A
+            <div className="relative w-8 h-8 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-700 border border-blue-400/50 text-white flex items-center justify-center font-bold text-xs shadow-[0_4px_16px_rgba(37,99,235,0.4),inset_0_1px_1.5px_rgba(255,255,255,0.6)]">
+              ID
+            </div>
+            <div className="hidden sm:block">
+              <span className="font-extrabold text-sm text-white tracking-tight block">Investment Diary</span>
+              <span className="text-[10px] text-blue-400 block font-mono -mt-0.5">Real-Time Portfolio</span>
             </div>
           </div>
         </div>

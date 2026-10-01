@@ -54,7 +54,7 @@ export const AIPopupChatbot: React.FC<AIPopupChatbotProps> = ({
     {
       id: 'welcome',
       sender: 'AI',
-      text: `### 🏛️ BLACKEYE AI: Institutional Risk & Performance Engine
+      text: `### 🏛️ Investment Diary AI: Risk & Portfolio Engine
 Selamat datang di terminal analisa risiko portofolio berstandar hedge fund tier-1 (**Citadel & Bridgewater Associates**).
 
 Saya telah memuat **${records.length} data transaksi** dari Google Sheet tab **${sheetTitle}** dengan model utama **gemini-3.6-flash** (auto-fallback ke **3.5, 3.8, flash-latest**). Siap melakukan audit mendalam terhadap:
@@ -590,7 +590,7 @@ Pastikan server berjalan atau gunakan **Private API Key (BYOK)** Anda sendiri di
             <Bot className="w-4 h-4" />
             <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
           </div>
-          <span>HedgeFund AI</span>
+          <span>Investment Diary AI</span>
           <span className="px-1.5 py-0.2 rounded-md bg-white/20 text-[10px] font-mono">
             {records.length} Trade
           </span>
@@ -614,7 +614,7 @@ Pastikan server berjalan atau gunakan **Private API Key (BYOK)** Anda sendiri di
               <div>
                 <div className="flex items-center gap-2">
                   <h3 className="text-sm font-extrabold text-white tracking-tight">
-                    BLACKEYE AI
+                    Investment Diary AI
                   </h3>
                   <span className="text-[10px] text-blue-300 px-1.5 py-0.2 rounded bg-blue-500/10 border border-blue-500/20 font-mono">
                     HedgeFund Tier-1

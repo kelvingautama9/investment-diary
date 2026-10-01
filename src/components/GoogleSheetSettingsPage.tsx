@@ -19,7 +19,14 @@ import {
   listUserSpreadsheets,
   type DriveSpreadsheetFile,
 } from '../services/googleSheets';
-import { setManualAccessToken } from '../services/firebaseAuth';
+import {
+  setManualAccessToken,
+  activeFirebaseProjectId,
+  isUsingCustomFirebase,
+  saveCustomFirebaseConfig,
+  clearCustomFirebaseConfig,
+} from '../services/firebaseAuth';
+import { Settings2 } from 'lucide-react';
 import { LiquidButton, Button } from '@/components/ui/liquid-glass-button';
 
 interface GoogleSheetSettingsPageProps {
@@ -54,6 +61,8 @@ export const GoogleSheetSettingsPage: React.FC<GoogleSheetSettingsPageProps> = (
   const [isError, setIsError] = useState(false);
   const [manualTokenInput, setManualTokenInput] = useState('');
   const [copiedDomain, setCopiedDomain] = useState(false);
+  const [byofConfigInput, setByofConfigInput] = useState('');
+  const [byofError, setByofError] = useState<string | null>(null);
   const currentHostname = typeof window !== 'undefined' ? window.location.hostname : '';
 
   const handleCopyDomain = () => {
@@ -71,6 +80,48 @@ export const GoogleSheetSettingsPage: React.FC<GoogleSheetSettingsPageProps> = (
     setIsError(false);
     if (spreadsheetId) {
       await onConnectSpreadsheet(spreadsheetId);
+    }
+  };
+
+  const handleSaveByof = () => {
+    setByofError(null);
+    if (!byofConfigInput.trim()) return;
+
+    try {
+      let cfg: any = null;
+      try {
+        cfg = JSON.parse(byofConfigInput);
+      } catch {
+        const jsonLike = byofConfigInput
+          .replace(/const\s+firebaseConfig\s*=\s*/, '')
+          .replace(/;?\s*$/, '')
+          .replace(/(['"])?([a-zA-Z0-9_]+)(['"])?:/g, '"$2":')
+          .replace(/'/g, '"');
+        cfg = JSON.parse(jsonLike);
+      }
+
+      if (!cfg || !cfg.projectId) {
+        const apiKey = byofConfigInput.match(/apiKey["']?\s*:\s*["']([^"']+)["']/)?.[1];
+        const projectId = byofConfigInput.match(/projectId["']?\s*:\s*["']([^"']+)["']/)?.[1];
+        const authDomain = byofConfigInput.match(/authDomain["']?\s*:\s*["']([^"']+)["']/)?.[1];
+        const appId = byofConfigInput.match(/appId["']?\s*:\s*["']([^"']+)["']/)?.[1];
+        if (projectId) {
+          cfg = {
+            projectId,
+            apiKey: apiKey || '',
+            authDomain: authDomain || `${projectId}.firebaseapp.com`,
+            appId: appId || '',
+          };
+        }
+      }
+
+      if (cfg && cfg.projectId) {
+        saveCustomFirebaseConfig(cfg);
+      } else {
+        setByofError('Format konfigurasi tidak valid. Pastikan memuat projectId dan apiKey.');
+      }
+    } catch (e: any) {
+      setByofError('Gagal membaca format config: ' + e?.message);
     }
   };
 
@@ -248,6 +299,55 @@ export const GoogleSheetSettingsPage: React.FC<GoogleSheetSettingsPageProps> = (
           <div>1. Buka <strong>Firebase Console</strong> &gt; Proyek Anda &gt; <strong>Authentication</strong> &gt; tab <strong>Settings</strong>.</div>
           <div>2. Gulir ke bawah ke bagian <strong>Authorized Domains</strong> &gt; Klik <strong>Add Domain</strong>.</div>
           <div>3. Tempelkan domain Anda di atas (<code>{currentHostname || 'vercel.app'}</code>) lalu klik Simpan.</div>
+        </div>
+      </div>
+
+      {/* Bring Your Own Firebase Project Configurator */}
+      <div className="p-5 rounded-2xl bg-[#10141f] border border-[#1b2234] space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Settings2 className="w-4 h-4 text-amber-400" />
+            <h3 className="text-xs font-bold text-white">Hubungkan Project Firebase Milik Anda (BYOF)</h3>
+          </div>
+          <span className="text-[10px] text-amber-400 font-mono">
+            {isUsingCustomFirebase ? 'Custom Firebase Aktif' : `Project: ${activeFirebaseProjectId}`}
+          </span>
+        </div>
+
+        <p className="text-xs text-slate-300 leading-relaxed">
+          Jika Anda telah menambahkan authorized domain ke <strong>Project Firebase milik Anda sendiri</strong>, tempelkan konfigurasi web Firebase Anda di bawah ini agar web terhubung ke project Anda:
+        </p>
+
+        <div className="space-y-2">
+          <textarea
+            rows={3}
+            value={byofConfigInput}
+            onChange={e => setByofConfigInput(e.target.value)}
+            placeholder='{"apiKey": "AIzaSy...", "authDomain": "my-project.firebaseapp.com", "projectId": "my-project", "appId": "..."}'
+            className="w-full bg-[#0b0e17] border border-[#1e273d] rounded-xl p-3 text-xs text-white font-mono placeholder:text-slate-600 focus:outline-none focus:border-blue-500"
+          />
+          {byofError && <p className="text-xs text-rose-400">{byofError}</p>}
+          <div className="flex items-center justify-between">
+            {isUsingCustomFirebase ? (
+              <button
+                type="button"
+                onClick={clearCustomFirebaseConfig}
+                className="text-xs text-rose-400 hover:text-rose-300 underline font-medium"
+              >
+                Reset ke Project Bawaan
+              </button>
+            ) : (
+              <span className="text-[10px] text-slate-500">Salin dari Firebase Console &gt; Project settings &gt; General &gt; Your apps</span>
+            )}
+            <button
+              type="button"
+              onClick={handleSaveByof}
+              disabled={!byofConfigInput.trim()}
+              className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 disabled:opacity-40 text-white text-xs font-bold transition-all shadow-md"
+            >
+              Simpan & Terapkan Project Firebase
+            </button>
+          </div>
         </div>
       </div>
 

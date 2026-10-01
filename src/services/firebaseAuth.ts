@@ -10,14 +10,62 @@ import {
 } from 'firebase/auth';
 import firebaseConfig from '../../firebase-applet-config.json';
 
-// Support VITE_FIREBASE_* environment variables for Vercel / GitHub Pages custom deployments
-const resolvedFirebaseConfig = {
-  projectId: (typeof import.meta !== 'undefined' && import.meta.env?.VITE_FIREBASE_PROJECT_ID) || firebaseConfig.projectId,
-  appId: (typeof import.meta !== 'undefined' && import.meta.env?.VITE_FIREBASE_APP_ID) || firebaseConfig.appId,
-  apiKey: (typeof import.meta !== 'undefined' && import.meta.env?.VITE_FIREBASE_API_KEY) || firebaseConfig.apiKey,
-  authDomain: (typeof import.meta !== 'undefined' && import.meta.env?.VITE_FIREBASE_AUTH_DOMAIN) || firebaseConfig.authDomain,
-  storageBucket: (typeof import.meta !== 'undefined' && import.meta.env?.VITE_FIREBASE_STORAGE_BUCKET) || firebaseConfig.storageBucket,
-  messagingSenderId: (typeof import.meta !== 'undefined' && import.meta.env?.VITE_FIREBASE_MESSAGING_SENDER_ID) || firebaseConfig.messagingSenderId,
+// Check custom config in localStorage (Bring Your Own Firebase Project)
+let storedCustomConfig: any = null;
+try {
+  if (typeof window !== 'undefined' && window.localStorage) {
+    const raw = window.localStorage.getItem('custom_firebase_config');
+    if (raw) storedCustomConfig = JSON.parse(raw);
+  }
+} catch {
+  // Ignored
+}
+
+// Support custom config > VITE_FIREBASE_* environment variables > firebase-applet-config.json
+export const resolvedFirebaseConfig = {
+  projectId:
+    storedCustomConfig?.projectId ||
+    (typeof import.meta !== 'undefined' && import.meta.env?.VITE_FIREBASE_PROJECT_ID) ||
+    firebaseConfig.projectId,
+  appId:
+    storedCustomConfig?.appId ||
+    (typeof import.meta !== 'undefined' && import.meta.env?.VITE_FIREBASE_APP_ID) ||
+    firebaseConfig.appId,
+  apiKey:
+    storedCustomConfig?.apiKey ||
+    (typeof import.meta !== 'undefined' && import.meta.env?.VITE_FIREBASE_API_KEY) ||
+    firebaseConfig.apiKey,
+  authDomain:
+    storedCustomConfig?.authDomain ||
+    (typeof import.meta !== 'undefined' && import.meta.env?.VITE_FIREBASE_AUTH_DOMAIN) ||
+    firebaseConfig.authDomain,
+  storageBucket:
+    storedCustomConfig?.storageBucket ||
+    (typeof import.meta !== 'undefined' && import.meta.env?.VITE_FIREBASE_STORAGE_BUCKET) ||
+    firebaseConfig.storageBucket,
+  messagingSenderId:
+    storedCustomConfig?.messagingSenderId ||
+    (typeof import.meta !== 'undefined' && import.meta.env?.VITE_FIREBASE_MESSAGING_SENDER_ID) ||
+    firebaseConfig.messagingSenderId,
+};
+
+export const isUsingCustomFirebase = Boolean(storedCustomConfig?.projectId);
+export const activeFirebaseProjectId = resolvedFirebaseConfig.projectId;
+
+export const getCustomFirebaseConfig = () => storedCustomConfig;
+
+export const saveCustomFirebaseConfig = (config: Record<string, string>) => {
+  if (typeof window !== 'undefined' && window.localStorage) {
+    window.localStorage.setItem('custom_firebase_config', JSON.stringify(config));
+    window.location.reload();
+  }
+};
+
+export const clearCustomFirebaseConfig = () => {
+  if (typeof window !== 'undefined' && window.localStorage) {
+    window.localStorage.removeItem('custom_firebase_config');
+    window.location.reload();
+  }
 };
 
 // Initialize Firebase App singleton
@@ -139,6 +187,7 @@ export const googleSignIn = async (useRedirect = false): Promise<{ user: User; a
       );
       (err as any).code = 'auth/unauthorized-domain';
       (err as any).hostname = currentHost;
+      (err as any).projectId = resolvedFirebaseConfig.projectId;
       throw err;
     }
 

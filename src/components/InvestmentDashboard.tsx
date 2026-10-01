@@ -88,7 +88,7 @@ export const InvestmentDashboard: React.FC<InvestmentDashboardProps> = ({
     });
 
     const netRoi = totalNominalIdr > 0 ? (totalLabaBersih / totalNominalIdr) * 100 : 0;
-    const winRate = closedCount > 0 ? (winCount / closedCount) * 100 : 80;
+    const winRate = closedCount > 0 ? (winCount / closedCount) * 100 : 0;
     const floatingCount = filteredRecords.filter(r => r.status === 'Floating').length;
 
     return {
@@ -300,30 +300,38 @@ export const InvestmentDashboard: React.FC<InvestmentDashboardProps> = ({
               </tr>
             </thead>
             <tbody className="divide-y divide-[#171d2c]">
-              {assetSummaries.map(a => (
-                <tr
-                  key={a.asset}
-                  className="hover:bg-[#141b29] transition-colors"
-                >
-                  <td className="py-3 font-bold text-white">
-                    {a.asset}
-                  </td>
-                  <td className="py-3 text-right text-slate-300">
-                    ${a.averageBuy.toLocaleString('en-US', { minimumFractionDigits: 1 })}
-                  </td>
-                  <td className="py-3 text-right text-white font-medium">
-                    ${a.priceNow.toLocaleString('en-US', { minimumFractionDigits: 1 })}
-                  </td>
-                  <td className="py-3 text-right font-bold">
-                    <span className={a.pnlPercent >= 0 ? 'text-emerald-400' : 'text-rose-400'}>
-                      {a.pnlPercent >= 0 ? '+' : ''}{a.pnlPercent.toFixed(2)}%
-                    </span>
-                  </td>
-                  <td className="py-3 text-right text-slate-200 font-semibold">
-                    Rp {a.valueTotalIdr.toLocaleString('id-ID')}
+              {assetSummaries.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="py-8 text-center text-slate-500 text-xs">
+                    Belum ada aset aktif (Floating). Hubungkan Google Sheet Anda untuk memuat aset portofolio.
                   </td>
                 </tr>
-              ))}
+              ) : (
+                assetSummaries.map(a => (
+                  <tr
+                    key={a.asset}
+                    className="hover:bg-[#141b29] transition-colors"
+                  >
+                    <td className="py-3 font-bold text-white">
+                      {a.asset}
+                    </td>
+                    <td className="py-3 text-right text-slate-300">
+                      ${a.averageBuy.toLocaleString('en-US', { minimumFractionDigits: 1 })}
+                    </td>
+                    <td className="py-3 text-right text-white font-medium">
+                      ${a.priceNow.toLocaleString('en-US', { minimumFractionDigits: 1 })}
+                    </td>
+                    <td className="py-3 text-right font-bold">
+                      <span className={a.pnlPercent >= 0 ? 'text-emerald-400' : 'text-rose-400'}>
+                        {a.pnlPercent >= 0 ? '+' : ''}{a.pnlPercent.toFixed(2)}%
+                      </span>
+                    </td>
+                    <td className="py-3 text-right text-slate-200 font-semibold">
+                      Rp {a.valueTotalIdr.toLocaleString('id-ID')}
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

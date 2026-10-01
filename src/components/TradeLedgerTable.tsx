@@ -195,7 +195,14 @@ export const TradeLedgerTable: React.FC<TradeLedgerTableProps> = ({
             {filteredRecords.length === 0 ? (
               <tr>
                 <td colSpan={15} className="py-12 text-center text-slate-500 text-xs">
-                  Tidak ada data posisi yang cocok. Klik "+ Tambah Posisi" untuk menambahkan transaksi ke Google Sheet.
+                  {!sheetConnected ? (
+                    <div className="space-y-1">
+                      <p className="font-semibold text-slate-400">Google Sheet Terputus</p>
+                      <p className="text-slate-500 text-[11px]">Semua metrik dan aset diatur ke 0. Hubungkan Google Sheet di menu "Koneksi Sheet" untuk memuat data Anda.</p>
+                    </div>
+                  ) : (
+                    'Tidak ada data posisi yang cocok. Klik "+ Tambah Posisi" untuk menambahkan transaksi ke Google Sheet.'
+                  )}
                 </td>
               </tr>
             ) : (

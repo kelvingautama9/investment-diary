@@ -10,13 +10,16 @@ import {
   googleSignIn,
   logout as firebaseLogout,
   getAccessToken,
+  activeFirebaseProjectId,
+  isUsingCustomFirebase,
+  saveCustomFirebaseConfig,
+  clearCustomFirebaseConfig,
 } from './services/firebaseAuth';
 import {
   fetchInvestmentRecords,
   appendInvestmentRecord,
   updateInvestmentRecord,
   deleteInvestmentRecordRow,
-  INITIAL_SAMPLE_RECORDS,
   SHEET_NAME,
 } from './services/googleSheets';
 
@@ -27,7 +30,7 @@ import { GoogleSheetSettingsPage } from './components/GoogleSheetSettingsPage';
 import { AIPopupChatbot } from './components/AIPopupChatbot';
 import { AddEditTradeModal } from './components/AddEditTradeModal';
 import { DeleteConfirmModal } from './components/DeleteConfirmModal';
-import { Globe, Copy, Check, ExternalLink, AlertTriangle, X } from 'lucide-react';
+import { Globe, Copy, Check, ExternalLink, AlertTriangle, X, Settings2, Key } from 'lucide-react';
 
 export default function App() {
   // Navigation State - only 'portfolio' and 'settings'
@@ -38,8 +41,8 @@ export default function App() {
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
-  // Google Sheet Data State
-  const [records, setRecords] = useState<InvestmentRecord[]>(INITIAL_SAMPLE_RECORDS);
+  // Google Sheet Data State (Defaults to empty array and 0 metrics when disconnected)
+  const [records, setRecords] = useState<InvestmentRecord[]>([]);
   const [spreadsheetId, setSpreadsheetId] = useState<string>(() => {
     return localStorage.getItem('apex_connected_sheet_id') || '';
   });
@@ -88,12 +91,14 @@ export default function App() {
   const syncWithGoogleSheet = useCallback(async () => {
     if (!spreadsheetId) {
       setSheetConnected(false);
+      setRecords([]);
       return;
     }
 
     const token = await getAccessToken();
     if (!token) {
       setSheetConnected(false);
+      setRecords([]);
       return;
     }
 
@@ -107,14 +112,16 @@ export default function App() {
         setLastSyncTime(new Date());
         addSyncLog(`Sinkronisasi berhasil: ${res.records.length} transaksi dimuat dari Google Sheet.`);
       } else if (res) {
+        setRecords([]);
         setSheetTitle(res.title);
         setSheetConnected(true);
         setLastSyncTime(new Date());
-        addSyncLog(`Google Sheet terhubung tetapi tab "${res.title}" masih kosong.`);
+        addSyncLog(`Google Sheet terhubung tetapi tab "${res.title}" masih kosong. Angka diatur ke 0.`);
       }
     } catch (err: any) {
       console.warn('Sync warning:', err);
       setSheetConnected(false);
+      setRecords([]);
       addSyncLog(`Sinkronisasi tertunda: ${err?.message || 'Memeriksa akses Google Sheet'}`);
     } finally {
       setIsSyncing(false);
@@ -170,6 +177,51 @@ export default function App() {
   // Google Login / Logout
   const [unauthorizedDomain, setUnauthorizedDomain] = useState<string | null>(null);
   const [copiedModalDomain, setCopiedModalDomain] = useState(false);
+  const [showByofInput, setShowByofInput] = useState(false);
+  const [byofConfigInput, setByofConfigInput] = useState('');
+  const [byofError, setByofError] = useState<string | null>(null);
+
+  const handleSaveByof = () => {
+    setByofError(null);
+    if (!byofConfigInput.trim()) return;
+
+    try {
+      let cfg: any = null;
+      try {
+        cfg = JSON.parse(byofConfigInput);
+      } catch {
+        const jsonLike = byofConfigInput
+          .replace(/const\s+firebaseConfig\s*=\s*/, '')
+          .replace(/;?\s*$/, '')
+          .replace(/(['"])?([a-zA-Z0-9_]+)(['"])?:/g, '"$2":')
+          .replace(/'/g, '"');
+        cfg = JSON.parse(jsonLike);
+      }
+
+      if (!cfg || !cfg.projectId) {
+        const apiKey = byofConfigInput.match(/apiKey["']?\s*:\s*["']([^"']+)["']/)?.[1];
+        const projectId = byofConfigInput.match(/projectId["']?\s*:\s*["']([^"']+)["']/)?.[1];
+        const authDomain = byofConfigInput.match(/authDomain["']?\s*:\s*["']([^"']+)["']/)?.[1];
+        const appId = byofConfigInput.match(/appId["']?\s*:\s*["']([^"']+)["']/)?.[1];
+        if (projectId) {
+          cfg = {
+            projectId,
+            apiKey: apiKey || '',
+            authDomain: authDomain || `${projectId}.firebaseapp.com`,
+            appId: appId || '',
+          };
+        }
+      }
+
+      if (cfg && cfg.projectId) {
+        saveCustomFirebaseConfig(cfg);
+      } else {
+        setByofError('Format konfigurasi tidak valid. Pastikan memuat projectId dan apiKey.');
+      }
+    } catch (e: any) {
+      setByofError('Gagal membaca format config: ' + e?.message);
+    }
+  };
 
   const handleLogin = async (useRedirect = false) => {
     setIsLoggingIn(true);
@@ -206,7 +258,8 @@ export default function App() {
     setUser(null);
     setAccessToken(null);
     setSheetConnected(false);
-    addSyncLog('Sesi Google diakhiri.');
+    setRecords([]);
+    addSyncLog('Sesi Google diakhiri. Angka dashboard direset ke 0.');
   };
 
   // Save Record (Add or Update)
@@ -394,6 +447,13 @@ export default function App() {
               Google memblokir login OAuth karena domain website Anda saat ini (<strong>Vercel / GitHub Pages</strong>) belum didaftarkan ke daftar <em>Authorized Domains</em> di Firebase Console.
             </p>
 
+            <div className="flex items-center justify-between p-2.5 rounded-xl bg-white/5 border border-white/10 text-xs">
+              <span className="text-slate-400">Project Firebase aktif web ini:</span>
+              <span className="font-mono font-bold text-amber-300 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
+                {activeFirebaseProjectId}
+              </span>
+            </div>
+
             <div className="space-y-1.5">
               <span className="text-[11px] font-semibold text-slate-400 block">Domain yang harus didaftarkan:</span>
               <div className="flex items-center gap-2 p-2.5 rounded-xl bg-[#0b0e17] border border-[#1e273d]">
@@ -415,8 +475,65 @@ export default function App() {
               </div>
             </div>
 
+            {/* Why not changed explanation */}
+            <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-200 space-y-1">
+              <div className="font-bold flex items-center gap-1.5 text-amber-300">
+                <span>Sudah add domain tapi status tidak berubah?</span>
+              </div>
+              <p className="text-[11px] text-slate-300 leading-relaxed">
+                Jika Anda menambahkan domain ini ke <strong>Project Firebase milik Anda sendiri</strong> (berbeda dari <code>{activeFirebaseProjectId}</code>), masukkan konfigurasi Firebase Anda di bawah ini agar web terhubung ke project Anda:
+              </p>
+            </div>
+
+            {/* Expandable BYOF Form */}
+            <div className="space-y-2">
+              <button
+                type="button"
+                onClick={() => setShowByofInput(!showByofInput)}
+                className="text-xs font-semibold text-blue-400 hover:text-blue-300 flex items-center gap-1.5"
+              >
+                <Settings2 className="w-3.5 h-3.5" />
+                <span>{showByofInput ? 'Tutup Form Konfigurasi Firebase' : 'Hubungkan Project Firebase Milik Anda Sendiri (BYOF)'}</span>
+              </button>
+
+              {showByofInput && (
+                <div className="p-3 rounded-xl bg-[#0b0e17] border border-[#1e273d] space-y-2 text-xs">
+                  <label className="text-[11px] font-semibold text-slate-400 block">
+                    Tempel Config Firebase Web (dari Firebase Console &gt; Project Settings &gt; General &gt; Your Apps):
+                  </label>
+                  <textarea
+                    rows={4}
+                    value={byofConfigInput}
+                    onChange={e => setByofConfigInput(e.target.value)}
+                    placeholder='{"apiKey": "AIzaSy...", "authDomain": "my-app.firebaseapp.com", "projectId": "my-app", "appId": "..."}'
+                    className="w-full bg-[#070a10] border border-[#1e273d] rounded-xl p-2.5 text-xs text-white font-mono placeholder:text-slate-600 focus:outline-none focus:border-blue-500"
+                  />
+                  {byofError && <p className="text-[11px] text-rose-400">{byofError}</p>}
+                  <div className="flex items-center justify-between pt-1">
+                    {isUsingCustomFirebase ? (
+                      <button
+                        type="button"
+                        onClick={clearCustomFirebaseConfig}
+                        className="text-xs text-rose-400 hover:text-rose-300 underline"
+                      >
+                        Reset ke Project Default
+                      </button>
+                    ) : <span />}
+                    <button
+                      type="button"
+                      onClick={handleSaveByof}
+                      disabled={!byofConfigInput.trim()}
+                      className="px-3.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-bold text-xs shadow-md"
+                    >
+                      Terapkan Project Saya
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
             <div className="p-3.5 rounded-xl bg-blue-500/10 border border-blue-500/20 text-xs text-slate-300 space-y-2">
-              <span className="font-semibold text-blue-300 block">Solusi Cepat 1 Menit:</span>
+              <span className="font-semibold text-blue-300 block">Langkah di Firebase Console:</span>
               <ol className="list-decimal pl-4 space-y-1.5 text-[11px] text-slate-300">
                 <li>Buka <a href="https://console.firebase.google.com/" target="_blank" rel="noreferrer" className="text-blue-400 underline font-semibold inline-flex items-center gap-0.5">Firebase Console <ExternalLink className="w-2.5 h-2.5 inline" /></a> &gt; Pilih proyek Anda.</li>
                 <li>Masuk ke menu <strong>Authentication</strong> &gt; Tab <strong>Settings</strong> &gt; Gulir ke <strong>Authorized Domains</strong>.</li>

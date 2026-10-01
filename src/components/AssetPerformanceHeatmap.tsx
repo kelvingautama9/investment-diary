@@ -443,8 +443,13 @@ export const AssetPerformanceHeatmap: React.FC<AssetPerformanceHeatmapProps> = (
                 : 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 mt-3'
             }
           >
-            {assets.map(item => {
-              const styling = getHeatmapColor(item.avgPnlPercent);
+            {assets.length === 0 ? (
+              <div className="col-span-full py-8 text-center text-slate-500 text-xs">
+                Belum ada aset terdeteksi. Hubungkan Google Sheet Anda untuk melihat peta sebaran kinerja portofolio.
+              </div>
+            ) : (
+              assets.map(item => {
+                const styling = getHeatmapColor(item.avgPnlPercent);
               const capitalShare =
                 totalCapitalPool > 0 ? (item.totalNominal / totalCapitalPool) * 100 : 0;
               const isProfitable = item.totalLabaBersih >= 0;
@@ -559,7 +564,7 @@ export const AssetPerformanceHeatmap: React.FC<AssetPerformanceHeatmapProps> = (
                   </div>
                 </div>
               );
-            })}
+            }))}
           </div>
 
           {/* Legend & Color Calibration Bar */}
