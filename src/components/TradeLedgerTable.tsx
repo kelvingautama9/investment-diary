@@ -12,6 +12,7 @@ import {
   TrendingUp,
   TrendingDown,
   Unlink,
+  RefreshCw,
 } from 'lucide-react';
 import { LiquidButton, Button } from '@/components/ui/liquid-glass-button';
 
@@ -23,6 +24,8 @@ interface TradeLedgerTableProps {
   sheetConnected: boolean;
   sheetTitle: string;
   onDisconnectSheet?: () => void;
+  isSyncing?: boolean;
+  onManualSync?: () => void;
 }
 
 export const TradeLedgerTable: React.FC<TradeLedgerTableProps> = ({
@@ -33,6 +36,8 @@ export const TradeLedgerTable: React.FC<TradeLedgerTableProps> = ({
   sheetConnected,
   sheetTitle,
   onDisconnectSheet,
+  isSyncing = false,
+  onManualSync,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'ALL' | TradeStatus>('ALL');
@@ -122,6 +127,23 @@ export const TradeLedgerTable: React.FC<TradeLedgerTableProps> = ({
           <span className="px-2 py-0.5 rounded-full text-[11px] font-medium bg-blue-500/10 text-blue-400 border border-blue-500/20">
             Tab: {sheetTitle}
           </span>
+          {isSyncing && (
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 flex items-center gap-1.5 animate-pulse">
+              <RefreshCw className="w-3 h-3 animate-spin text-cyan-300" />
+              <span>Menyinkronkan...</span>
+            </span>
+          )}
+          {sheetConnected && onManualSync && !isSyncing && (
+            <button
+              type="button"
+              onClick={onManualSync}
+              title="Sinkronkan data sekarang"
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-medium text-slate-300 bg-white/5 hover:bg-white/10 border border-white/10 transition-all group"
+            >
+              <RefreshCw className="w-3 h-3 text-slate-400 group-hover:text-cyan-400 group-hover:rotate-180 transition-all duration-300" />
+              <span>Refresh</span>
+            </button>
+          )}
           {sheetConnected && onDisconnectSheet && (
             <button
               type="button"

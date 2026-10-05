@@ -31,7 +31,7 @@ import { TradeLedgerTable } from './components/TradeLedgerTable';
 import { GoogleSheetSettingsPage } from './components/GoogleSheetSettingsPage';
 import { AddEditTradeModal } from './components/AddEditTradeModal';
 import { DeleteConfirmModal } from './components/DeleteConfirmModal';
-import { Globe, Copy, Check, ExternalLink, AlertTriangle, X, Settings2, Key, Link2, ChevronDown } from 'lucide-react';
+import { Globe, Copy, Check, ExternalLink, AlertTriangle, X, Settings2, Key, Link2, ChevronDown, Sparkles } from 'lucide-react';
 
 export default function App() {
   // Navigation State - only 'portfolio' and 'settings'
@@ -262,7 +262,7 @@ export default function App() {
       ) {
         setUnauthorizedDomain(host || 'vercel.app');
       } else {
-        alert('Gagal Sign in Google: ' + (err?.message || 'Error'));
+        addSyncLog(`Info Google Login: ${err?.message || 'Login dibatalkan atau terkendala'}. Anda tetap dapat membaca sheet langsung via Link Sheet tanpa perlu login.`);
       }
     } finally {
       setIsLoggingIn(false);
@@ -334,7 +334,7 @@ export default function App() {
       setRecordToDelete(null);
     } catch (err: any) {
       console.error('Delete error:', err);
-      alert('Gagal menghapus baris: ' + (err?.message || 'Error'));
+      addSyncLog(`Gagal menghapus baris di Google Sheet: ${err?.message || 'Error'}`);
     } finally {
       setIsDeleting(false);
     }
@@ -388,6 +388,8 @@ export default function App() {
               sheetConnected={sheetConnected}
               sheetTitle={sheetTitle}
               onDisconnectSheet={handleDisconnectSpreadsheet}
+              isSyncing={isSyncing}
+              onManualSync={() => syncWithGoogleSheet()}
             />
           </div>
         )}
@@ -470,6 +472,18 @@ export default function App() {
                 className="w-full py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-md transition-all flex items-center justify-center gap-1.5 mt-1"
               >
                 <span>Buka Menu Koneksi Sheet Sekarang ↗</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setUnauthorizedDomain(null);
+                  handleConnectSpreadsheet('1zHROHuGIcJm63bpVLpJoaIXmp00gHRdR6Sc2nf_E_7E', 'INVESTMENT');
+                }}
+                className="w-full py-2 rounded-xl bg-cyan-600/20 hover:bg-cyan-600/30 text-cyan-300 border border-cyan-500/30 font-bold text-xs transition-all flex items-center justify-center gap-1.5"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>Pakai Sheet Demo (1-Klik Langsung Aktif)</span>
               </button>
             </div>
 

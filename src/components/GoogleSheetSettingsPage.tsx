@@ -14,6 +14,7 @@ import {
   Check,
   Key,
   Unlink,
+  Sparkles,
 } from 'lucide-react';
 import {
   extractSpreadsheetId,
@@ -224,16 +225,27 @@ export const GoogleSheetSettingsPage: React.FC<GoogleSheetSettingsPageProps> = (
           </div>
 
           <div className="flex items-center gap-2">
-            <span
-              className={`px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1.5 ${
-                sheetConnected
-                  ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                  : 'bg-slate-800 text-slate-400 border border-slate-700'
-              }`}
-            >
-              <span className={`w-2 h-2 rounded-full ${sheetConnected ? 'bg-emerald-400 animate-pulse' : 'bg-slate-500'}`} />
-              <span>{sheetConnected ? 'Tersinkronisasi' : 'Belum Tersambung'}</span>
-            </span>
+            {isSyncing ? (
+              <span className="px-3 py-1 rounded-full text-xs font-bold flex items-center gap-2 bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 animate-pulse shadow-[0_0_10px_rgba(6,182,212,0.2)]">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-cyan-400"></span>
+                </span>
+                <RefreshCw className="w-3.5 h-3.5 animate-spin text-cyan-300" />
+                <span>Sedang Mengambil Data...</span>
+              </span>
+            ) : (
+              <span
+                className={`px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1.5 ${
+                  sheetConnected
+                    ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                    : 'bg-slate-800 text-slate-400 border border-slate-700'
+                }`}
+              >
+                <span className={`w-2 h-2 rounded-full ${sheetConnected ? 'bg-emerald-400 animate-pulse' : 'bg-slate-500'}`} />
+                <span>{sheetConnected ? 'Tersinkronisasi' : 'Belum Tersambung'}</span>
+              </span>
+            )}
 
             {sheetConnected && (
               <button
@@ -287,9 +299,23 @@ export const GoogleSheetSettingsPage: React.FC<GoogleSheetSettingsPageProps> = (
 
       {/* Connection Input Box */}
       <div className="p-5 rounded-2xl bg-[#10141f] border border-[#1b2234] space-y-3.5">
-        <label className="text-xs font-semibold text-white block">
-          Link Google Sheet Proyek Anda:
-        </label>
+        <div className="flex items-center justify-between">
+          <label className="text-xs font-semibold text-white block">
+            Link Google Sheet Proyek Anda:
+          </label>
+          <button
+            type="button"
+            onClick={() => {
+              setInputUrl('1zHROHuGIcJm63bpVLpJoaIXmp00gHRdR6Sc2nf_E_7E');
+              setSelectedTab('INVESTMENT');
+              handleConnect('1zHROHuGIcJm63bpVLpJoaIXmp00gHRdR6Sc2nf_E_7E', 'INVESTMENT');
+            }}
+            className="text-xs text-cyan-400 hover:text-cyan-300 underline font-medium flex items-center gap-1.5"
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>Pakai Sheet Demo (1-Klik)</span>
+          </button>
+        </div>
         <div className="flex gap-2">
           <input
             type="text"
