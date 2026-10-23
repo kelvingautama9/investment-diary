@@ -23,78 +23,73 @@ export const DeleteConfirmModal: React.FC<DeleteConfirmModalProps> = ({
   if (!isOpen || !record) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm select-none">
-      <div className="w-full max-w-md rounded-2xl bg-[#10141f] border border-[#1b2234] shadow-2xl p-5 text-xs text-white">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-xs select-none">
+      <div className="w-full max-w-md rounded-xl bg-[#0c0f17] border border-[#1e2638] shadow-2xl p-5 text-xs text-white">
         {/* Header */}
-        <div className="flex items-center justify-between pb-3 border-b border-[#1b2234]">
+        <div className="flex items-center justify-between pb-3 border-b border-[#1a2233]">
           <div className="flex items-center gap-2 text-rose-400">
-            <AlertTriangle className="w-5 h-5" />
-            <h3 className="font-bold text-sm tracking-tight text-white">Konfirmasi Hapus Transaksi</h3>
+            <AlertTriangle className="w-4 h-4" />
+            <h3 className="font-semibold text-sm tracking-tight text-white">Hapus Posisi Transaksi</h3>
           </div>
-          <LiquidButton
+          <button
+            type="button"
             onClick={onClose}
-            variant="ghost"
-            size="icon"
-            className="w-7 h-7 rounded-lg text-slate-400 hover:text-white"
+            className="p-1 rounded text-slate-400 hover:text-white hover:bg-[#161d2d] transition-colors"
           >
             <X className="w-4 h-4" />
-          </LiquidButton>
+          </button>
         </div>
 
         {/* Content */}
         <div className="py-4 space-y-3">
-          <p className="text-slate-300 leading-relaxed">
-            Apakah Anda yakin ingin menghapus baris transaksi ini dari tabel dan spreadsheet Google Sheet tab{' '}
-            <strong className="text-blue-400">"{sheetTitle}"</strong>?
+          <p className="text-slate-300 leading-relaxed text-xs">
+            Apakah Anda yakin ingin menghapus transaksi ini dari rekap dan Google Sheet tab{' '}
+            <span className="text-slate-100 font-mono font-medium">"{sheetTitle}"</span>?
           </p>
 
-          <div className="p-3.5 rounded-xl bg-[#0b0e17] border border-[#171d2c] space-y-1.5 text-xs">
+          <div className="p-3 rounded-lg bg-[#090c12] border border-[#1a2233] space-y-1.5 text-xs">
             <div className="flex justify-between">
               <span className="text-slate-400">Aset:</span>
-              <span className="text-white font-bold">{record.asset} ({record.type})</span>
+              <span className="text-white font-mono font-semibold">{record.asset} ({record.type})</span>
             </div>
             <div className="flex justify-between">
               <span className="text-slate-400">Nominal:</span>
-              <span className="text-white font-medium">Rp {Math.round(record.nominalIdr).toLocaleString('id-ID')}</span>
+              <span className="text-slate-200 font-mono tabular-nums">Rp {Math.round(record.nominalIdr).toLocaleString('id-ID')}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-slate-400">Entry Date:</span>
-              <span className="text-slate-300">{record.entryDate}</span>
+              <span className="text-slate-300 font-mono">{record.entryDate}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-slate-400">Baris Google Sheet:</span>
-              <span className="text-blue-400 font-semibold">Baris ke-{record.rowNumber || 'N/A'}</span>
+              <span className="text-slate-400">Baris Sheet:</span>
+              <span className="text-blue-400 font-mono">Baris ke-{record.rowNumber || 'N/A'}</span>
             </div>
           </div>
 
-          <p className="text-[11px] text-rose-400 font-medium">
-            Tindakan ini permanen dan akan menghapus baris terkait di file Google Sheet.
+          <p className="text-[11px] text-rose-400">
+            Tindakan ini permanen dan akan menghapus baris terkait di file Google Sheet Anda.
           </p>
         </div>
 
         {/* Actions */}
-        <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#1b2234]">
-          <LiquidButton
+        <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#1a2233]">
+          <button
             type="button"
             onClick={onClose}
             disabled={isDeleting}
-            variant="secondary"
-            size="md"
-            className="px-4 py-2 rounded-xl text-slate-300 font-semibold"
+            className="px-3 py-1.5 rounded-md text-xs font-medium text-slate-300 bg-[#161d2d] hover:bg-[#1e273d] border border-[#222c42] transition-colors"
           >
             Batal
-          </LiquidButton>
-          <LiquidButton
+          </button>
+          <button
             type="button"
             onClick={onConfirm}
             disabled={isDeleting}
-            variant="destructive"
-            size="md"
-            className="px-5 py-2 rounded-xl font-bold gap-1.5 shadow-[0_4px_16px_rgba(225,29,72,0.4)] disabled:opacity-50"
+            className="px-3.5 py-1.5 rounded-md text-xs font-medium text-white bg-rose-600 hover:bg-rose-500 border border-rose-400/30 transition-colors flex items-center gap-1.5 disabled:opacity-50"
           >
             <Trash2 className="w-3.5 h-3.5" />
-            <span>{isDeleting ? 'Menghapus...' : 'Hapus Baris'}</span>
-          </LiquidButton>
+            <span>{isDeleting ? 'Menghapus...' : 'Hapus Posisi'}</span>
+          </button>
         </div>
       </div>
     </div>

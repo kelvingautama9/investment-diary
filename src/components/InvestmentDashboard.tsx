@@ -7,14 +7,11 @@ import {
   Calendar,
   ArrowUpRight,
   ArrowDownRight,
-  TrendingUp,
   PieChart,
-  DollarSign,
   Layers,
   Coins,
-  ShieldCheck,
+  CheckCircle2,
 } from 'lucide-react';
-import { LiquidButton } from '@/components/ui/liquid-glass-button';
 
 interface InvestmentDashboardProps {
   records: InvestmentRecord[];
@@ -82,7 +79,6 @@ export const InvestmentDashboard: React.FC<InvestmentDashboardProps> = ({
         realizedGains += rec.labaBersih || 0;
         if (rec.labaBersih > 0) winCount++;
       } else {
-        // Hanya yang statusnya Floating yang dihitung sebagai modal masuk aktif
         totalNominalIdr += rec.nominalIdr || 0;
         floatingGains += rec.labaBersih || 0;
         totalNilaiAsetFloating += rec.nilaiAset || 0;
@@ -101,12 +97,13 @@ export const InvestmentDashboard: React.FC<InvestmentDashboardProps> = ({
       floatingGains,
       netRoi,
       winRate,
+      winCount,
       closedCount,
       floatingCount,
     };
   }, [filteredRecords]);
 
-  // Group by Asset Summary (Matching columns P:S in user spreadsheet)
+  // Group by Asset Summary (Columns P:S in user spreadsheet)
   const assetSummaries: AssetSummary[] = useMemo(() => {
     const floatingRecords = records.filter(
       r => r.status === 'Floating' && !isNonInvestmentOrExpense(r.asset) && !isNonInvestmentOrExpense(r.type)
@@ -144,207 +141,239 @@ export const InvestmentDashboard: React.FC<InvestmentDashboardProps> = ({
   // Grand Total of floating asset value
   const grandTotalFloatingVal = assetSummaries.reduce((acc, a) => acc + a.valueTotalIdr, 0);
 
-  const presets: DateFilterPreset[] = ['ALL', '1D', '7D', '30D', '90D', 'YTD', '1Y', 'CUSTOM'];
+  const presets: Array<{ id: DateFilterPreset; label: string }> = [
+    { id: 'ALL', label: 'Semua' },
+    { id: '1D', label: '1 Hari' },
+    { id: '7D', label: '7 Hari' },
+    { id: '30D', label: '30 Hari' },
+    { id: '90D', label: '90 Hari' },
+    { id: 'YTD', label: 'YTD' },
+    { id: '1Y', label: '1 Tahun' },
+    { id: 'CUSTOM', label: 'Kustom' },
+  ];
 
   return (
-    <div className="space-y-4 select-none">
-      {/* Date Filter Bar */}
-      <div className="p-3 rounded-2xl bg-[#10141f] border border-[#1b2234] flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <Calendar className="w-4 h-4 text-blue-400" />
-          <span className="text-xs font-semibold text-white">Filter Periode:</span>
-          <div className="flex items-center gap-1 bg-[#0b0e17]/80 p-1 rounded-xl border border-[#1e273d] backdrop-blur-md">
-            {presets.map(preset => {
-              const isActive = dateFilter.preset === preset;
+    <div className="space-y-6">
+      {/* Date Filter & Status Bar */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-2.5 rounded-xl bg-[#0f131c] border border-[#1e2638]">
+        <div className="flex items-center flex-wrap gap-1.5">
+          <div className="flex items-center gap-1.5 px-2 text-slate-400 text-xs">
+            <Calendar className="w-3.5 h-3.5" />
+            <span className="font-medium">Periode:</span>
+          </div>
+
+          <div className="flex items-center gap-1 bg-[#090b10] p-0.5 rounded-lg border border-[#1a2233] overflow-x-auto no-scrollbar">
+            {presets.map(item => {
+              const isActive = dateFilter.preset === item.id;
               return (
-                <LiquidButton
-                  key={preset}
-                  onClick={() => onDateFilterChange({ ...dateFilter, preset })}
-                  variant={isActive ? 'primary' : 'ghost'}
-                  size="sm"
-                  className={`h-7 px-2.5 text-xs ${
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => onDateFilterChange({ ...dateFilter, preset: item.id })}
+                  className={`px-2.5 py-1 text-xs rounded-md font-medium transition-colors whitespace-nowrap ${
                     isActive
-                      ? 'font-bold shadow-[0_2px_12px_rgba(37,99,235,0.4)]'
-                      : 'text-slate-400 hover:text-white'
+                      ? 'bg-[#182030] text-white shadow-sm'
+                      : 'text-slate-400 hover:text-slate-200'
                   }`}
                 >
-                  {preset}
-                </LiquidButton>
+                  {item.label}
+                </button>
               );
             })}
           </div>
         </div>
 
         {dateFilter.preset === 'CUSTOM' && (
-          <div className="flex items-center gap-2 text-xs">
+          <div className="flex items-center gap-2 text-xs px-2">
             <input
               type="date"
               value={dateFilter.startDate || ''}
               onChange={e => onDateFilterChange({ ...dateFilter, startDate: e.target.value })}
-              className="bg-[#0b0e17] border border-[#1e273d] rounded-lg px-2.5 py-1 text-white text-xs"
+              className="bg-[#090b10] border border-[#1e2638] rounded-md px-2 py-1 text-white text-xs font-mono"
             />
             <span className="text-slate-500">s/d</span>
             <input
               type="date"
               value={dateFilter.endDate || ''}
               onChange={e => onDateFilterChange({ ...dateFilter, endDate: e.target.value })}
-              className="bg-[#0b0e17] border border-[#1e273d] rounded-lg px-2.5 py-1 text-white text-xs"
+              className="bg-[#090b10] border border-[#1e2638] rounded-md px-2 py-1 text-white text-xs font-mono"
             />
           </div>
         )}
 
-        <div className="text-xs text-slate-400">
-          Data Terfilter: <strong className="text-blue-400 font-semibold">{filteredRecords.length}</strong> dari {records.length} Transaksi
+        <div className="text-xs text-slate-400 px-2 sm:text-right">
+          Menampilkan <span className="font-semibold text-white font-mono">{filteredRecords.length}</span> dari{' '}
+          <span className="font-mono">{records.length}</span> transaksi
         </div>
       </div>
 
-      {/* KPI Cards Row */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5">
-        {/* Total Modal Investasi */}
-        <div className="p-4 rounded-2xl bg-[#10141f] border border-[#1b2234]">
-          <span className="text-xs font-medium text-slate-400 block">Total Modal Masuk</span>
-          <span className="text-xl font-bold text-white block mt-1">
-            Rp {Math.round(metrics.totalNominalIdr).toLocaleString('id-ID')}
-          </span>
-          <span className="text-[11px] text-slate-500 mt-1 block">
-            {metrics.floatingCount} posisi floating aktif
-          </span>
+      {/* Executive Financial Metrics Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Metric 1: Total Nilai Portofolio (Focal Anchor) */}
+        <div className="p-4 rounded-xl bg-[#0f131c] border border-[#1e2638]">
+          <span className="text-xs text-slate-400 font-medium block">Total Nilai Portofolio Aktif</span>
+          <div className="text-2xl font-bold text-white mt-1.5 font-mono tabular-nums tracking-tight">
+            Rp {grandTotalFloatingVal.toLocaleString('id-ID')}
+          </div>
+          <div className="text-[11px] text-slate-500 mt-2 flex items-center justify-between">
+            <span>{metrics.floatingCount} posisi floating</span>
+            <span className="font-mono">USD/IDR ~17.868</span>
+          </div>
         </div>
 
-        {/* Total Laba Bersih */}
-        <div className="p-4 rounded-2xl bg-[#10141f] border border-[#1b2234]">
-          <span className="text-xs font-medium text-slate-400 block">Total Laba Bersih</span>
-          <div className="flex items-center gap-1.5 mt-1">
-            {metrics.totalLabaBersih >= 0 ? (
-              <ArrowUpRight className="w-5 h-5 text-emerald-400" />
-            ) : (
-              <ArrowDownRight className="w-5 h-5 text-rose-400" />
-            )}
+        {/* Metric 2: Total Laba Bersih & ROI */}
+        <div className="p-4 rounded-xl bg-[#0f131c] border border-[#1e2638]">
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-slate-400 font-medium">Total Laba Bersih</span>
             <span
-              className={`text-xl font-bold ${
-                metrics.totalLabaBersih >= 0 ? 'text-emerald-400' : 'text-rose-400'
+              className={`text-xs font-bold font-mono ${
+                metrics.netRoi >= 0 ? 'text-emerald-400' : 'text-rose-400'
               }`}
             >
+              ROI {metrics.netRoi >= 0 ? '+' : ''}{metrics.netRoi.toFixed(2)}%
+            </span>
+          </div>
+          <div
+            className={`text-2xl font-bold mt-1.5 font-mono tabular-nums tracking-tight flex items-center gap-1 ${
+              metrics.totalLabaBersih >= 0 ? 'text-emerald-400' : 'text-rose-400'
+            }`}
+          >
+            {metrics.totalLabaBersih >= 0 ? (
+              <ArrowUpRight className="w-5 h-5 shrink-0" />
+            ) : (
+              <ArrowDownRight className="w-5 h-5 shrink-0" />
+            )}
+            <span>
               {metrics.totalLabaBersih >= 0 ? '+' : ''}Rp {Math.round(metrics.totalLabaBersih).toLocaleString('id-ID')}
             </span>
           </div>
-          <span
-            className={`text-[11px] font-semibold mt-1 block ${
-              metrics.netRoi >= 0 ? 'text-emerald-400' : 'text-rose-400'
+          <div className="text-[11px] text-slate-500 mt-2">
+            Akumulasi Realized + Floating
+          </div>
+        </div>
+
+        {/* Metric 3: Modal Masuk Aktif */}
+        <div className="p-4 rounded-xl bg-[#0f131c] border border-[#1e2638]">
+          <span className="text-xs text-slate-400 font-medium block">Modal Masuk Aktif</span>
+          <div className="text-2xl font-bold text-white mt-1.5 font-mono tabular-nums tracking-tight">
+            Rp {Math.round(metrics.totalNominalIdr).toLocaleString('id-ID')}
+          </div>
+          <div className="text-[11px] text-slate-500 mt-2 flex items-center justify-between">
+            <span>Floating Gain:</span>
+            <span
+              className={`font-mono font-medium ${
+                metrics.floatingGains >= 0 ? 'text-emerald-400' : 'text-rose-400'
+              }`}
+            >
+              {metrics.floatingGains >= 0 ? '+' : ''}Rp {Math.round(metrics.floatingGains).toLocaleString('id-ID')}
+            </span>
+          </div>
+        </div>
+
+        {/* Metric 4: Kinerja Realized Transaksi */}
+        <div className="p-4 rounded-xl bg-[#0f131c] border border-[#1e2638]">
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-slate-400 font-medium">Laba Terealisasi (Closed)</span>
+            <span className="text-xs text-slate-300 font-mono">
+              Win Rate: {metrics.winRate.toFixed(0)}%
+            </span>
+          </div>
+          <div
+            className={`text-2xl font-bold mt-1.5 font-mono tabular-nums tracking-tight ${
+              metrics.realizedGains >= 0 ? 'text-emerald-400' : 'text-rose-400'
             }`}
           >
-            ROI Bersih: {metrics.netRoi >= 0 ? '+' : ''}{metrics.netRoi.toFixed(2)}%
-          </span>
-        </div>
-
-        {/* Realized vs Floating */}
-        <div className="p-4 rounded-2xl bg-[#10141f] border border-[#1b2234]">
-          <span className="text-xs font-medium text-slate-400 block">Status Laba</span>
-          <div className="mt-1 space-y-0.5">
-            <div className="flex justify-between text-xs">
-              <span className="text-slate-400">Realized:</span>
-              <span className={`font-semibold ${metrics.realizedGains >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                Rp {Math.round(metrics.realizedGains).toLocaleString('id-ID')}
-              </span>
-            </div>
-            <div className="flex justify-between text-xs">
-              <span className="text-slate-400">Floating:</span>
-              <span className={`font-semibold ${metrics.floatingGains >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                Rp {Math.round(metrics.floatingGains).toLocaleString('id-ID')}
-              </span>
-            </div>
+            {metrics.realizedGains >= 0 ? '+' : ''}Rp {Math.round(metrics.realizedGains).toLocaleString('id-ID')}
           </div>
-          <span className="text-[11px] text-slate-500 mt-1 block">
-            {metrics.closedCount} Realized • {metrics.floatingCount} Floating
-          </span>
-        </div>
-
-        {/* Grand Total Nilai Aset Floating */}
-        <div className="p-4 rounded-2xl bg-[#10141f] border border-[#1b2234]">
-          <span className="text-xs font-medium text-slate-400 block">Total Nilai Aset Aktif</span>
-          <span className="text-xl font-bold text-blue-400 block mt-1">
-            Rp {grandTotalFloatingVal.toLocaleString('id-ID')}
-          </span>
-          <span className="text-[11px] text-slate-500 mt-1 block">
-            Kurs USD/IDR Acuan: <strong>17.868</strong>
-          </span>
+          <div className="text-[11px] text-slate-500 mt-2">
+            {metrics.winCount} menang dari {metrics.closedCount} transaksi selesai
+          </div>
         </div>
       </div>
 
-      {/* The Detailed Cumulative Equity Growth Chart (White Line as requested) */}
+      {/* Cumulative Equity Growth Chart Component */}
       <DetailedEquityChart records={filteredRecords} />
 
-      {/* Visual Performance Heatmap: Asset Profitability Distribution */}
+      {/* Asset Performance Heatmap */}
       <AssetPerformanceHeatmap
         records={filteredRecords}
         onSelectAsset={onSelectAssetForChart}
       />
 
-      {/* Summary Table: Ringkasan Aset Aktif Floating (Columns P:S from user Google Sheet) */}
-      <div className="p-5 rounded-2xl bg-[#10141f] border border-[#1b2234]">
-        <div className="flex items-center justify-between pb-3 border-b border-[#1b2234]">
-          <div className="flex items-center gap-2">
-            <PieChart className="w-4 h-4 text-blue-400" />
-            <h3 className="text-xs font-bold text-white tracking-tight">
+      {/* Summary Table: Ringkasan Aset Portofolio Aktif (Floating) */}
+      <div className="rounded-xl bg-[#0f131c] border border-[#1e2638] overflow-hidden">
+        <div className="p-4 border-b border-[#1a2233] flex items-center justify-between">
+          <div>
+            <h3 className="text-sm font-semibold text-white tracking-tight">
               Ringkasan Aset Portofolio Aktif (Floating)
             </h3>
+            <p className="text-xs text-slate-400 mt-0.5">
+              Konsolidasi posisi terbuka berdasarkan kolom P–S Google Sheet
+            </p>
           </div>
-          <span className="text-[11px] text-slate-400">Kolom P–S Google Sheet</span>
+          <span className="text-xs text-slate-400 font-mono">
+            {assetSummaries.length} Aset
+          </span>
         </div>
 
-        <div className="mt-3 overflow-x-auto">
+        <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
             <thead>
-              <tr className="text-[11px] font-semibold text-slate-400 border-b border-[#1b2234]">
-                <th className="pb-2.5">ASSET</th>
-                <th className="pb-2.5 text-right">AVERAGE BUY</th>
-                <th className="pb-2.5 text-right">PRICE NOW</th>
-                <th className="pb-2.5 text-right">PnL (%)</th>
-                <th className="pb-2.5 text-right">VALUE TOTAL (IDR)</th>
+              <tr className="text-slate-400 border-b border-[#1a2233] bg-[#090b10]/60">
+                <th className="py-2.5 px-4 font-medium">Aset</th>
+                <th className="py-2.5 px-4 font-medium text-right">Rata-Rata Beli</th>
+                <th className="py-2.5 px-4 font-medium text-right">Harga Saat Ini</th>
+                <th className="py-2.5 px-4 font-medium text-right">PnL (%)</th>
+                <th className="py-2.5 px-4 font-medium text-right">Total Nilai (IDR)</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#171d2c]">
               {assetSummaries.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="py-8 text-center text-slate-500 text-xs">
-                    Belum ada aset aktif (Floating). Hubungkan Google Sheet Anda untuk memuat aset portofolio.
+                    Belum ada aset aktif (Floating). Hubungkan Google Sheet untuk memuat data transaksi.
                   </td>
                 </tr>
               ) : (
                 assetSummaries.map(a => (
                   <tr
                     key={a.asset}
-                    className="hover:bg-[#141b29] transition-colors"
+                    className="hover:bg-[#141a27] transition-colors"
                   >
-                    <td className="py-3 font-bold text-white">
+                    <td className="py-3 px-4 font-bold text-white font-mono">
                       {a.asset}
                     </td>
-                    <td className="py-3 text-right text-slate-300">
+                    <td className="py-3 px-4 text-right text-slate-300 font-mono tabular-nums">
                       ${a.averageBuy.toLocaleString('en-US', { minimumFractionDigits: 1 })}
                     </td>
-                    <td className="py-3 text-right text-white font-medium">
+                    <td className="py-3 px-4 text-right text-white font-medium font-mono tabular-nums">
                       ${a.priceNow.toLocaleString('en-US', { minimumFractionDigits: 1 })}
                     </td>
-                    <td className="py-3 text-right font-bold">
+                    <td className="py-3 px-4 text-right font-bold font-mono tabular-nums">
                       <span className={a.pnlPercent >= 0 ? 'text-emerald-400' : 'text-rose-400'}>
                         {a.pnlPercent >= 0 ? '+' : ''}{a.pnlPercent.toFixed(2)}%
                       </span>
                     </td>
-                    <td className="py-3 text-right text-slate-200 font-semibold">
+                    <td className="py-3 px-4 text-right text-slate-100 font-semibold font-mono tabular-nums">
                       Rp {a.valueTotalIdr.toLocaleString('id-ID')}
                     </td>
                   </tr>
                 ))
               )}
             </tbody>
+            {assetSummaries.length > 0 && (
+              <tfoot>
+                <tr className="border-t border-[#1a2233] bg-[#090b10]/80">
+                  <td colSpan={4} className="py-3 px-4 text-xs font-semibold text-slate-300 uppercase tracking-wider">
+                    Total Nilai Aset Portofolio
+                  </td>
+                  <td className="py-3 px-4 text-right text-base font-bold text-white font-mono tabular-nums">
+                    Rp {grandTotalFloatingVal.toLocaleString('id-ID')}
+                  </td>
+                </tr>
+              </tfoot>
+            )}
           </table>
-        </div>
-
-        <div className="pt-3 mt-3 border-t border-[#1b2234] flex items-center justify-between text-xs">
-          <span className="font-semibold text-slate-300">GRAND TOTAL NILAI ASET</span>
-          <span className="font-bold text-white text-base">
-            Rp {grandTotalFloatingVal.toLocaleString('id-ID')}
-          </span>
         </div>
       </div>
     </div>

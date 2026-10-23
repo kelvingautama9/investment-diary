@@ -3,7 +3,6 @@
 import React, { useState, useMemo } from 'react';
 import type { InvestmentRecord } from '../types';
 import { isNonInvestmentOrExpense } from '../services/googleSheets';
-import { Card, CardContent } from '@/components/ui/card';
 import { ChartConfig, ChartContainer, ChartTooltip } from '@/components/ui/line-charts-9';
 import { TrendingUp, TrendingDown, LineChart as LineIcon, BarChart2 } from 'lucide-react';
 import {
@@ -344,77 +343,72 @@ export const DetailedEquityChart: React.FC<DetailedEquityChartProps> = ({ record
   };
 
   return (
-    <div className="w-full select-none">
-      <Card className="w-full bg-[#10141f] border border-[#1b2234] rounded-2xl shadow-xl overflow-hidden">
-        <CardContent className="flex flex-col items-stretch gap-4 p-5 sm:p-6">
-          {/* Header Balance Banner with Mode Toggle */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-2">
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-slate-400 font-medium">
-                  {chartType === 'line'
-                    ? 'Akumulasi Pertumbuhan Laba Bersih (Realized + Floating)'
-                    : 'Distribusi Laba / Rugi Per Transaksi'}
-                </span>
-                <span className="text-[11px] text-blue-400 font-medium px-2 py-0.5 rounded-full bg-blue-500/10 border border-blue-500/20">
-                  Sinkron Google Sheet
-                </span>
-              </div>
-              <div className="flex flex-wrap items-baseline gap-2 sm:gap-3.5 mt-1">
-                <span
-                  className={`text-3xl sm:text-4xl font-extrabold tracking-tight ${
-                    currentBalance >= 0 ? 'text-white' : 'text-rose-400'
-                  }`}
-                >
-                  {currentBalance >= 0 ? '+' : ''}Rp {Math.round(currentBalance).toLocaleString('id-ID')}
-                </span>
-                <div
-                  className={`flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-lg ${
-                    pnlPercentage >= 0
-                      ? 'text-emerald-400 bg-emerald-500/10 border border-emerald-500/20'
-                      : 'text-rose-400 bg-rose-500/10 border border-rose-500/20'
-                  }`}
-                >
-                  {pnlPercentage >= 0 ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5" />}
-                  <span>{pnlPercentage >= 0 ? '+' : ''}{pnlPercentage}%</span>
-                  <span className="text-slate-400 font-normal ml-0.5">Net ROI</span>
-                </div>
-              </div>
+    <div className="w-full select-none rounded-xl bg-[#0f131c] border border-[#1e2638] p-5 sm:p-6">
+      <div className="flex flex-col gap-4">
+        {/* Header Balance Banner with Mode Toggle */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <div className="flex items-center gap-2 text-xs text-slate-400">
+              <span className="font-medium text-slate-300">
+                {chartType === 'line'
+                  ? 'Akumulasi Pertumbuhan Laba Bersih (Realized + Floating)'
+                  : 'Distribusi Laba / Rugi Per Transaksi'}
+              </span>
+              <span className="text-slate-600">·</span>
+              <span className="text-slate-400">Database Sheet</span>
             </div>
-
-            {/* Toggle Button: Line vs Bar */}
-            <div className="flex items-center self-start sm:self-center bg-[#0b0e17] p-1 rounded-xl border border-[#1e273d]">
-              <button
-                type="button"
-                onClick={() => setChartType('line')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
-                  chartType === 'line'
-                    ? 'bg-blue-600 text-white shadow-[0_2px_10px_rgba(37,99,235,0.4)]'
-                    : 'text-slate-400 hover:text-white'
+            <div className="flex flex-wrap items-baseline gap-2.5 sm:gap-3.5 mt-1.5">
+              <span
+                className={`text-2xl sm:text-3xl font-bold tracking-tight font-mono tabular-nums ${
+                  currentBalance >= 0 ? 'text-white' : 'text-rose-400'
                 }`}
-                title="Tampilkan Kurva Pertumbuhan Akumulasi"
               >
-                <LineIcon className="w-3.5 h-3.5" />
-                <span>Kurva Akumulasi</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setChartType('bar')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
-                  chartType === 'bar'
-                    ? 'bg-blue-600 text-white shadow-[0_2px_10px_rgba(37,99,235,0.4)]'
-                    : 'text-slate-400 hover:text-white'
+                {currentBalance >= 0 ? '+' : ''}Rp {Math.round(currentBalance).toLocaleString('id-ID')}
+              </span>
+              <div
+                className={`flex items-center gap-1 text-xs font-semibold font-mono ${
+                  pnlPercentage >= 0 ? 'text-emerald-400' : 'text-rose-400'
                 }`}
-                title="Tampilkan Diagram Batang Laba/Rugi Tiap Transaksi"
               >
-                <BarChart2 className="w-3.5 h-3.5" />
-                <span>Hasil Per Transaksi</span>
-              </button>
+                {pnlPercentage >= 0 ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5" />}
+                <span>{pnlPercentage >= 0 ? '+' : ''}{pnlPercentage}% Net ROI</span>
+              </div>
             </div>
           </div>
 
-          {/* Stats Row */}
-          <div className="flex items-center justify-between flex-wrap gap-2.5 text-xs pb-3 border-b border-[#1b2234]">
+          {/* Segmented Control: Line vs Bar */}
+          <div className="flex items-center self-start sm:self-center bg-[#090b10] p-1 rounded-lg border border-[#1a2233]">
+            <button
+              type="button"
+              onClick={() => setChartType('line')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                chartType === 'line'
+                  ? 'bg-[#182030] text-white shadow-sm'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+              title="Tampilkan Kurva Pertumbuhan Akumulasi"
+            >
+              <LineIcon className="w-3.5 h-3.5" />
+              <span>Kurva Akumulasi</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setChartType('bar')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                chartType === 'bar'
+                  ? 'bg-[#182030] text-white shadow-sm'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+              title="Tampilkan Diagram Batang Laba/Rugi Tiap Transaksi"
+            >
+              <BarChart2 className="w-3.5 h-3.5" />
+              <span>Hasil Transaksi</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Stats Row */}
+        <div className="flex items-center justify-between flex-wrap gap-2.5 text-xs pb-3 border-b border-[#1a2233]">
             {chartType === 'line' ? (
               <>
                 {/* Recent PnL */}
@@ -644,8 +638,7 @@ export const DetailedEquityChart: React.FC<DetailedEquityChartProps> = ({ record
               </ComposedChart>
             </ChartContainer>
           </div>
-        </CardContent>
-      </Card>
-    </div>
+        </div>
+      </div>
   );
 };

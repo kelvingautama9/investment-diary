@@ -96,140 +96,139 @@ export const AddEditTradeModal: React.FC<AddEditTradeModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm select-none">
-      <div className="w-full max-w-lg rounded-2xl bg-[#10141f] border border-[#1b2234] shadow-2xl p-5 text-xs text-white">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-xs select-none">
+      <div className="w-full max-w-lg rounded-xl bg-[#0c0f17] border border-[#1e2638] shadow-2xl p-5 text-xs text-white">
         {/* Header */}
-        <div className="flex items-center justify-between pb-3 border-b border-[#1b2234]">
-          <div className="flex items-center gap-2 text-white">
-            <div className="w-7 h-7 rounded-lg bg-blue-600/10 text-blue-400 flex items-center justify-center border border-blue-500/20">
+        <div className="flex items-center justify-between pb-3 border-b border-[#1a2233]">
+          <div className="flex items-center gap-2.5 text-white">
+            <div className="w-7 h-7 rounded bg-blue-500/10 text-blue-400 flex items-center justify-center border border-blue-500/20">
               <FileSpreadsheet className="w-4 h-4" />
             </div>
-            <h3 className="font-bold text-sm tracking-tight">
+            <h3 className="font-semibold text-sm tracking-tight">
               {editingRecord ? `Edit Baris (${editingRecord.asset})` : 'Tambah Transaksi ke Google Sheet'}
             </h3>
           </div>
-          <LiquidButton
+          <button
+            type="button"
             onClick={onClose}
-            variant="ghost"
-            size="icon"
-            className="w-7 h-7 rounded-lg text-slate-400 hover:text-white"
+            className="p-1 rounded text-slate-400 hover:text-white hover:bg-[#161d2d] transition-colors"
           >
             <X className="w-4 h-4" />
-          </LiquidButton>
+          </button>
         </div>
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="py-4 space-y-3.5">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-[11px] text-slate-400 font-semibold block mb-1">TYPE</label>
+              <label className="text-[10px] uppercase tracking-wider text-slate-400 font-medium block mb-1">Tipe</label>
               <select
                 value={type}
                 onChange={e => setType(e.target.value as TradeType)}
-                className="w-full bg-[#0b0e17] border border-[#1e273d] rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500"
+                className="w-full bg-[#090c12] border border-[#1e2638] rounded-md px-3 py-1.5 text-xs text-white focus:outline-none focus:border-slate-400 font-mono"
               >
                 <option value="BUY">BUY</option>
                 <option value="SELL">SELL</option>
               </select>
             </div>
             <div>
-              <label className="text-[11px] text-slate-400 font-semibold block mb-1">ASSET</label>
+              <label className="text-[10px] uppercase tracking-wider text-slate-400 font-medium block mb-1">Aset</label>
               <input
                 type="text"
                 required
                 value={asset}
                 onChange={e => setAsset(e.target.value)}
-                placeholder="NVDA, GOLD, SPCX, QQQ, MSTR..."
-                className="w-full bg-[#0b0e17] border border-[#1e273d] rounded-xl px-3 py-2 text-xs text-white uppercase font-bold focus:outline-none focus:border-blue-500"
+                placeholder="NVDA, GOLD, SPCX, QQQ..."
+                className="w-full bg-[#090c12] border border-[#1e2638] rounded-md px-3 py-1.5 text-xs text-white uppercase font-mono font-medium focus:outline-none focus:border-slate-400"
               />
             </div>
           </div>
 
           <div className="grid grid-cols-3 gap-3">
             <div>
-              <label className="text-[11px] text-slate-400 font-semibold block mb-1">NOMINAL (IDR)</label>
+              <label className="text-[10px] uppercase tracking-wider text-slate-400 font-medium block mb-1">Nominal (IDR)</label>
               <input
                 type="number"
                 required
                 value={nominalIdr}
                 onChange={e => setNominalIdr(parseFloat(e.target.value) || 0)}
-                className="w-full bg-[#0b0e17] border border-[#1e273d] rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500"
+                className="w-full bg-[#090c12] border border-[#1e2638] rounded-md px-3 py-1.5 text-xs text-white font-mono tabular-nums focus:outline-none focus:border-slate-400"
               />
             </div>
             <div>
-              <label className="text-[11px] text-slate-400 font-semibold block mb-1">KURS IDR-USD</label>
+              <label className="text-[10px] uppercase tracking-wider text-slate-400 font-medium block mb-1">Kurs IDR-USD</label>
               <input
                 type="number"
                 value={kursIdrUsd}
                 onChange={e => setKursIdrUsd(parseFloat(e.target.value) || 0)}
                 placeholder="17890"
-                className="w-full bg-[#0b0e17] border border-[#1e273d] rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500"
+                className="w-full bg-[#090c12] border border-[#1e2638] rounded-md px-3 py-1.5 text-xs text-white font-mono tabular-nums focus:outline-none focus:border-slate-400"
               />
             </div>
             <div>
-              <label className="text-[11px] text-slate-400 font-semibold block mb-1">JUMLAH (QTY)</label>
+              <label className="text-[10px] uppercase tracking-wider text-slate-400 font-medium block mb-1">Jumlah (Qty)</label>
               <input
                 type="number"
                 step="any"
                 required
                 value={jumlah}
                 onChange={e => setJumlah(parseFloat(e.target.value) || 0)}
-                className="w-full bg-[#0b0e17] border border-[#1e273d] rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500"
+                className="w-full bg-[#090c12] border border-[#1e2638] rounded-md px-3 py-1.5 text-xs text-white font-mono tabular-nums focus:outline-none focus:border-slate-400"
               />
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-[11px] text-slate-400 font-semibold block mb-1">ENTRY DATE</label>
+              <label className="text-[10px] uppercase tracking-wider text-slate-400 font-medium block mb-1">Entry Date</label>
               <input
                 type="date"
                 required
                 value={entryDate}
                 onChange={e => setEntryDate(e.target.value)}
-                className="w-full bg-[#0b0e17] border border-[#1e273d] rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500"
+                className="w-full bg-[#090c12] border border-[#1e2638] rounded-md px-3 py-1.5 text-xs text-white font-mono focus:outline-none focus:border-slate-400"
               />
             </div>
             <div>
-              <label className="text-[11px] text-slate-400 font-semibold block mb-1">EXIT DATE (OPTIONAL)</label>
+              <label className="text-[10px] uppercase tracking-wider text-slate-400 font-medium block mb-1">Exit Date (Opsional)</label>
               <input
                 type="date"
                 value={exitDate}
                 onChange={e => setExitDate(e.target.value)}
-                className="w-full bg-[#0b0e17] border border-[#1e273d] rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500"
+                className="w-full bg-[#090c12] border border-[#1e2638] rounded-md px-3 py-1.5 text-xs text-white font-mono focus:outline-none focus:border-slate-400"
               />
             </div>
           </div>
 
           <div className="grid grid-cols-3 gap-3">
             <div>
-              <label className="text-[11px] text-slate-400 font-semibold block mb-1">ENTRY PRICE</label>
+              <label className="text-[10px] uppercase tracking-wider text-slate-400 font-medium block mb-1">Entry Price</label>
               <input
                 type="number"
                 step="any"
                 required
                 value={entryPrice}
                 onChange={e => setEntryPrice(parseFloat(e.target.value) || 0)}
-                className="w-full bg-[#0b0e17] border border-[#1e273d] rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500"
+                className="w-full bg-[#090c12] border border-[#1e2638] rounded-md px-3 py-1.5 text-xs text-white font-mono tabular-nums focus:outline-none focus:border-slate-400"
               />
             </div>
             <div>
-              <label className="text-[11px] text-slate-400 font-semibold block mb-1">EXIT PRICE / NOW</label>
+              <label className="text-[10px] uppercase tracking-wider text-slate-400 font-medium block mb-1">Exit Price</label>
               <input
                 type="number"
                 step="any"
                 value={exitPrice || ''}
                 onChange={e => setExitPrice(parseFloat(e.target.value) || 0)}
-                placeholder="Kosongkan jika floating"
-                className="w-full bg-[#0b0e17] border border-[#1e273d] rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500"
+                placeholder="Kosongkan jika aktif"
+                className="w-full bg-[#090c12] border border-[#1e2638] rounded-md px-3 py-1.5 text-xs text-white font-mono tabular-nums focus:outline-none focus:border-slate-400"
               />
             </div>
             <div>
-              <label className="text-[11px] text-slate-400 font-semibold block mb-1">STATUS (NOTES)</label>
+              <label className="text-[10px] uppercase tracking-wider text-slate-400 font-medium block mb-1">Status</label>
               <select
                 value={status}
                 onChange={e => setStatus(e.target.value as TradeStatus)}
-                className="w-full bg-[#0b0e17] border border-[#1e273d] rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500"
+                className="w-full bg-[#090c12] border border-[#1e2638] rounded-md px-3 py-1.5 text-xs text-white focus:outline-none focus:border-slate-400"
               >
                 <option value="Floating">Floating (Aktif)</option>
                 <option value="Realized">Realized (Selesai)</option>
@@ -238,49 +237,45 @@ export const AddEditTradeModal: React.FC<AddEditTradeModalProps> = ({
           </div>
 
           {/* Real-time Computed Summary */}
-          <div className="p-3 rounded-xl bg-[#0b0e17] border border-[#171d2c] grid grid-cols-3 gap-2 text-center text-xs">
+          <div className="p-3 rounded-lg bg-[#090c12] border border-[#1a2233] grid grid-cols-3 gap-2 text-center text-xs font-mono">
             <div>
-              <span className="text-[10px] text-slate-500 block">EST. PnL %</span>
-              <span className={`font-bold ${pnlPercent >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+              <span className="text-[10px] uppercase tracking-wider text-slate-500 block">Est. PnL %</span>
+              <span className={`font-semibold tabular-nums ${pnlPercent >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
                 {pnlPercent >= 0 ? '+' : ''}{pnlPercent.toFixed(2)}%
               </span>
             </div>
             <div>
-              <span className="text-[10px] text-slate-500 block">SPREAD 0.5%</span>
-              <span className="text-rose-400 font-medium">
+              <span className="text-[10px] uppercase tracking-wider text-slate-500 block">Spread 0.5%</span>
+              <span className="text-slate-300 tabular-nums">
                 Rp {spreadCost.toLocaleString('id-ID')}
               </span>
             </div>
             <div>
-              <span className="text-[10px] text-slate-500 block">EST. LABA BERSIH</span>
-              <span className={`font-bold ${labaBersih >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+              <span className="text-[10px] uppercase tracking-wider text-slate-500 block">Est. Laba Bersih</span>
+              <span className={`font-semibold tabular-nums ${labaBersih >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
                 {labaBersih >= 0 ? '+' : ''}Rp {labaBersih.toLocaleString('id-ID')}
               </span>
             </div>
           </div>
 
           {/* Footer Actions */}
-          <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#1b2234]">
-            <LiquidButton
+          <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#1a2233]">
+            <button
               type="button"
               onClick={onClose}
               disabled={isSubmitting}
-              variant="secondary"
-              size="md"
-              className="px-4 py-2 rounded-xl text-slate-300 font-semibold"
+              className="px-3 py-1.5 rounded-md text-xs font-medium text-slate-300 bg-[#161d2d] hover:bg-[#1e273d] border border-[#222c42] transition-colors"
             >
               Batal
-            </LiquidButton>
-            <LiquidButton
+            </button>
+            <button
               type="submit"
               disabled={isSubmitting}
-              variant="primary"
-              size="md"
-              className="px-5 py-2 rounded-xl font-bold gap-1.5 shadow-[0_4px_16px_rgba(37,99,235,0.4)] disabled:opacity-50"
+              className="px-4 py-1.5 rounded-md text-xs font-medium text-white bg-blue-600 hover:bg-blue-500 border border-blue-400/30 transition-colors flex items-center gap-1.5 disabled:opacity-50"
             >
               <Save className="w-3.5 h-3.5" />
               <span>{isSubmitting ? 'Menyimpan...' : 'Simpan ke Google Sheet'}</span>
-            </LiquidButton>
+            </button>
           </div>
         </form>
       </div>

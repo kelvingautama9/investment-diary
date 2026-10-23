@@ -161,67 +161,69 @@ export const AssetPerformanceHeatmap: React.FC<AssetPerformanceHeatmapProps> = (
   const getHeatmapColor = (pnlPct: number) => {
     if (pnlPct >= 20) {
       return {
-        bg: 'bg-emerald-500/20 hover:bg-emerald-500/30',
-        border: 'border-emerald-500/60 shadow-[0_0_20px_rgba(16,185,129,0.25)]',
-        badge: 'text-emerald-300 bg-emerald-500/20 border-emerald-500/40',
+        bg: 'bg-emerald-950/20 hover:bg-emerald-950/30',
+        border: 'border-emerald-800/60',
+        badge: 'text-emerald-400 font-bold',
         text: 'text-emerald-400',
       };
     }
     if (pnlPct >= 10) {
       return {
-        bg: 'bg-emerald-600/15 hover:bg-emerald-600/25',
-        border: 'border-emerald-500/40 shadow-[0_0_15px_rgba(16,185,129,0.15)]',
-        badge: 'text-emerald-300 bg-emerald-600/20 border-emerald-500/30',
+        bg: 'bg-emerald-950/15 hover:bg-emerald-950/25',
+        border: 'border-emerald-800/40',
+        badge: 'text-emerald-400 font-bold',
         text: 'text-emerald-400',
       };
     }
     if (pnlPct > 0) {
       return {
-        bg: 'bg-teal-500/10 hover:bg-teal-500/20',
-        border: 'border-teal-500/30',
-        badge: 'text-teal-300 bg-teal-500/15 border-teal-500/25',
-        text: 'text-teal-400',
+        bg: 'bg-[#101722] hover:bg-[#151f2e]',
+        border: 'border-[#1e2a3a]',
+        badge: 'text-emerald-400 font-bold',
+        text: 'text-emerald-400',
       };
     }
     if (pnlPct > -8) {
       return {
-        bg: 'bg-amber-500/10 hover:bg-amber-500/20',
-        border: 'border-amber-500/30',
-        badge: 'text-amber-300 bg-amber-500/15 border-amber-500/25',
+        bg: 'bg-amber-950/10 hover:bg-amber-950/20',
+        border: 'border-amber-800/40',
+        badge: 'text-amber-400 font-bold',
         text: 'text-amber-400',
       };
     }
     return {
-      bg: 'bg-rose-500/20 hover:bg-rose-500/30',
-      border: 'border-rose-500/50 shadow-[0_0_15px_rgba(244,63,94,0.18)]',
-      badge: 'text-rose-300 bg-rose-500/20 border-rose-500/40',
+      bg: 'bg-rose-950/20 hover:bg-rose-950/30',
+      border: 'border-rose-900/50',
+      badge: 'text-rose-400 font-bold',
       text: 'text-rose-400',
     };
   };
 
   return (
-    <div className="p-4 sm:p-5 rounded-2xl bg-[#10141f] border border-[#1b2234] transition-all select-none">
+    <div className="p-5 rounded-xl bg-[#0f131c] border border-[#1e2638] select-none">
       {/* Heatmap Navigation Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
         <div className="flex items-center gap-2.5">
-          <div className="p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
+          <div className="p-1.5 rounded-md bg-[#141a27] border border-[#232d42] text-blue-400">
             <LayoutGrid className="w-4 h-4" />
           </div>
           <div>
-            <div className="flex items-center flex-wrap gap-2">
-              <h3 className="text-sm font-bold text-white tracking-tight">
-                Peta Sebaran Kinerja Aset (Performance Heatmap)
+            <div className="flex items-center flex-wrap gap-2 text-xs">
+              <h3 className="font-semibold text-white tracking-tight text-sm">
+                Peta Sebaran Kinerja Aset
               </h3>
-              <span className="text-[10px] text-emerald-400 font-semibold px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
-                {winRatio}% Positif
+              <span className="text-slate-600">·</span>
+              <span className="text-emerald-400 font-semibold font-mono">
+                {winRatio}% Rasio Positif
               </span>
-              <span className="text-[10px] text-slate-400">
-                • {assets.length} aset terpantau
+              <span className="text-slate-600">·</span>
+              <span className="text-slate-400 font-mono">
+                {assets.length} Aset
               </span>
             </div>
             {!isCollapsed && (
               <p className="text-[11px] text-slate-400 mt-0.5 hidden sm:block">
-                Visualisasi intensitas keuntungan/kerugian untuk mendeteksi aset berkinerja tinggi vs underperforming sekilas.
+                Visualisasi intensitas keuntungan dan kerugian portofolio untuk mendeteksi performa tiap instrumen.
               </p>
             )}
           </div>
@@ -230,54 +232,54 @@ export const AssetPerformanceHeatmap: React.FC<AssetPerformanceHeatmapProps> = (
         {/* Action Controls & Navigation */}
         <div className="flex items-center flex-wrap gap-2 self-start md:self-center">
           {/* Scope Toggle: Semua Aset / Floating Saja / Realized Saja */}
-          <div className="flex items-center bg-[#0b0e17] p-1 rounded-xl border border-[#1e273d] text-xs">
+          <div className="flex items-center bg-[#090b10] p-0.5 rounded-lg border border-[#1a2233] text-xs">
             <button
               type="button"
               onClick={() => setScope('ALL')}
-              className={`px-2.5 py-1 font-semibold rounded-lg transition-all ${
+              className={`px-2.5 py-1 font-medium rounded-md transition-colors ${
                 scope === 'ALL'
-                  ? 'bg-blue-600 text-white shadow-md'
-                  : 'text-slate-400 hover:text-white'
+                  ? 'bg-[#182030] text-white shadow-sm'
+                  : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              Semua Aset
+              Semua
             </button>
             <button
               type="button"
               onClick={() => setScope('FLOATING')}
-              className={`px-2.5 py-1 font-semibold rounded-lg transition-all ${
+              className={`px-2.5 py-1 font-medium rounded-md transition-colors ${
                 scope === 'FLOATING'
-                  ? 'bg-blue-600 text-white shadow-md'
-                  : 'text-slate-400 hover:text-white'
+                  ? 'bg-[#182030] text-white shadow-sm'
+                  : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              Floating Saja
+              Floating
             </button>
             <button
               type="button"
               onClick={() => setScope('REALIZED')}
-              className={`px-2.5 py-1 font-semibold rounded-lg transition-all ${
+              className={`px-2.5 py-1 font-medium rounded-md transition-colors ${
                 scope === 'REALIZED'
-                  ? 'bg-blue-600 text-white shadow-md'
-                  : 'text-slate-400 hover:text-white'
+                  ? 'bg-[#182030] text-white shadow-sm'
+                  : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              Realized Saja
+              Realized
             </button>
           </div>
 
           {!isCollapsed && (
             <>
               {/* Metric View Toggle (% vs $) */}
-              <div className="flex items-center bg-[#0b0e17] p-1 rounded-xl border border-[#1e273d] text-xs">
+              <div className="flex items-center bg-[#090b10] p-0.5 rounded-lg border border-[#1a2233] text-xs">
                 <button
                   type="button"
                   onClick={() => setDisplayMetric('PERCENT')}
-                  title="Tampilkan fokus persentase ROI"
-                  className={`p-1.5 rounded-lg transition-all ${
+                  title="Fokus persentase ROI"
+                  className={`p-1 rounded-md transition-colors ${
                     displayMetric === 'PERCENT'
-                      ? 'bg-emerald-600 text-white shadow-md'
-                      : 'text-slate-400 hover:text-white'
+                      ? 'bg-[#182030] text-white shadow-sm'
+                      : 'text-slate-400 hover:text-slate-200'
                   }`}
                 >
                   <Percent className="w-3.5 h-3.5" />
@@ -285,11 +287,11 @@ export const AssetPerformanceHeatmap: React.FC<AssetPerformanceHeatmapProps> = (
                 <button
                   type="button"
                   onClick={() => setDisplayMetric('NOMINAL')}
-                  title="Tampilkan fokus nominal Rupiah"
-                  className={`p-1.5 rounded-lg transition-all ${
+                  title="Fokus nominal Rupiah"
+                  className={`p-1 rounded-md transition-colors ${
                     displayMetric === 'NOMINAL'
-                      ? 'bg-emerald-600 text-white shadow-md'
-                      : 'text-slate-400 hover:text-white'
+                      ? 'bg-[#182030] text-white shadow-sm'
+                      : 'text-slate-400 hover:text-slate-200'
                   }`}
                 >
                   <DollarSign className="w-3.5 h-3.5" />
@@ -380,55 +382,55 @@ export const AssetPerformanceHeatmap: React.FC<AssetPerformanceHeatmapProps> = (
 
       {/* Expanded Body Content */}
       {!isCollapsed && (
-        <div className="pt-3 mt-3 border-t border-[#1b2234]">
+        <div className="pt-3 mt-3 border-t border-[#1a2233]">
           {/* Highlights Banner */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 mb-3 text-xs">
             {topWinner && (
-              <div className="p-3 rounded-xl bg-[#0b0e17] border border-emerald-500/20 flex items-center justify-between">
+              <div className="p-3 rounded-lg bg-[#0a0d14] border border-emerald-500/25 flex items-center justify-between">
                 <div>
-                  <span className="text-[10px] text-slate-400 block">Top Performer (Laba Tertinggi)</span>
-                  <span className="text-white font-bold text-sm flex items-center gap-1.5 mt-0.5">
+                  <span className="text-[10px] uppercase tracking-wider text-slate-400 font-medium block">Top Performer</span>
+                  <span className="text-white font-semibold text-sm flex items-center gap-1.5 mt-0.5">
                     {topWinner.asset}
-                    <span className="text-xs font-semibold text-emerald-400">
+                    <span className="text-xs font-mono font-medium text-emerald-400">
                       +{topWinner.avgPnlPercent.toFixed(2)}%
                     </span>
                   </span>
                 </div>
-                <span className="text-xs font-bold text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-lg border border-emerald-500/20">
+                <span className="text-xs font-mono font-medium text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20 tabular-nums">
                   {formatShortIdr(topWinner.totalLabaBersih)}
                 </span>
               </div>
             )}
 
             {worstLoser && (
-              <div className="p-3 rounded-xl bg-[#0b0e17] border border-rose-500/20 flex items-center justify-between">
+              <div className="p-3 rounded-lg bg-[#0a0d14] border border-rose-500/25 flex items-center justify-between">
                 <div>
-                  <span className="text-[10px] text-slate-400 block">Underperformer (Koreksi Terbesar)</span>
-                  <span className="text-white font-bold text-sm flex items-center gap-1.5 mt-0.5">
+                  <span className="text-[10px] uppercase tracking-wider text-slate-400 font-medium block">Underperformer</span>
+                  <span className="text-white font-semibold text-sm flex items-center gap-1.5 mt-0.5">
                     {worstLoser.asset}
-                    <span className="text-xs font-semibold text-rose-400">
+                    <span className="text-xs font-mono font-medium text-rose-400">
                       {worstLoser.avgPnlPercent.toFixed(2)}%
                     </span>
                   </span>
                 </div>
-                <span className="text-xs font-bold text-rose-400 bg-rose-500/10 px-2.5 py-1 rounded-lg border border-rose-500/20">
+                <span className="text-xs font-mono font-medium text-rose-400 bg-rose-500/10 px-2 py-0.5 rounded border border-rose-500/20 tabular-nums">
                   {formatShortIdr(worstLoser.totalLabaBersih)}
                 </span>
               </div>
             )}
 
-            <div className="p-3 rounded-xl bg-[#0b0e17] border border-[#1e273d] flex items-center justify-between">
+            <div className="p-3 rounded-lg bg-[#0a0d14] border border-[#1e2638] flex items-center justify-between">
               <div>
-                <span className="text-[10px] text-slate-400 block">Total Nilai Laba (Filter Terpilih)</span>
+                <span className="text-[10px] uppercase tracking-wider text-slate-400 font-medium block">Total Nilai Laba</span>
                 <span
-                  className={`font-bold text-sm block mt-0.5 ${
+                  className={`font-semibold font-mono text-sm block mt-0.5 tabular-nums ${
                     totalProfit >= 0 ? 'text-emerald-400' : 'text-rose-400'
                   }`}
                 >
                   {totalProfit >= 0 ? '+' : ''}Rp {Math.round(totalProfit).toLocaleString('id-ID')}
                 </span>
               </div>
-              <span className="text-xs text-slate-400">
+              <span className="text-[11px] text-slate-400">
                 {scope === 'REALIZED'
                   ? 'Realized Only'
                   : scope === 'FLOATING'
@@ -443,7 +445,7 @@ export const AssetPerformanceHeatmap: React.FC<AssetPerformanceHeatmapProps> = (
             className={
               isCompact
                 ? 'grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2 mt-3'
-                : 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 mt-3'
+                : 'grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5 mt-3'
             }
           >
             {assets.length === 0 ? (
@@ -453,148 +455,142 @@ export const AssetPerformanceHeatmap: React.FC<AssetPerformanceHeatmapProps> = (
             ) : (
               assets.map(item => {
                 const styling = getHeatmapColor(item.avgPnlPercent);
-              const capitalShare =
-                totalCapitalPool > 0 ? (item.totalNominal / totalCapitalPool) * 100 : 0;
-              const isProfitable = item.totalLabaBersih >= 0;
+                const capitalShare =
+                  totalCapitalPool > 0 ? (item.totalNominal / totalCapitalPool) * 100 : 0;
+                const isProfitable = item.totalLabaBersih >= 0;
 
-              if (isCompact) {
-                // Compact Tile View (Perkecil Tampilan)
+                if (isCompact) {
+                  // Compact Tile View (Perkecil Tampilan)
+                  return (
+                    <div
+                      key={item.asset}
+                      onClick={() => onSelectAsset && onSelectAsset(item.asset)}
+                      className={`rounded-lg p-2.5 border transition-colors cursor-pointer ${styling.bg} ${styling.border} hover:border-slate-500`}
+                    >
+                      <div className="flex items-center justify-between gap-1">
+                        <span className="font-semibold text-xs text-white tracking-tight">
+                          {item.asset}
+                        </span>
+                        <span
+                          className={`text-[10px] font-mono font-medium px-1 rounded border tabular-nums ${styling.badge}`}
+                        >
+                          {isProfitable ? '+' : ''}
+                          {item.avgPnlPercent.toFixed(1)}%
+                        </span>
+                      </div>
+
+                      <div className="mt-1 text-xs font-mono font-medium text-white truncate tabular-nums">
+                        {displayMetric === 'PERCENT' ? (
+                          <span>{formatShortIdr(item.totalLabaBersih)}</span>
+                        ) : (
+                          <span>{item.avgPnlPercent.toFixed(2)}% ROI</span>
+                        )}
+                      </div>
+
+                      <div className="text-[10px] font-mono text-slate-400 mt-1 truncate tabular-nums">
+                        Rp {Math.round(item.totalNominal / 1000000)} Jt ({capitalShare.toFixed(0)}%)
+                      </div>
+                    </div>
+                  );
+                }
+
+                // Standard Full-Size Card View - Clean Financial Craft
                 return (
                   <div
                     key={item.asset}
                     onClick={() => onSelectAsset && onSelectAsset(item.asset)}
-                    className={`relative overflow-hidden rounded-xl p-2.5 border transition-all duration-200 cursor-pointer ${styling.bg} ${styling.border} hover:scale-[1.02] active:scale-[0.99]`}
+                    className={`rounded-lg p-3 border transition-colors cursor-pointer ${styling.bg} ${styling.border} hover:border-slate-500`}
                   >
-                    <div className="flex items-center justify-between gap-1">
-                      <span className="font-extrabold text-sm text-white tracking-tight">
+                    {/* Ticker & Status Badges */}
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-semibold text-sm text-white tracking-tight">
                         {item.asset}
                       </span>
                       <span
-                        className={`text-[9px] font-bold px-1.5 py-0.2 rounded border ${styling.badge}`}
+                        className={`text-[10px] font-mono font-medium px-1.5 py-0.5 rounded border tabular-nums ${styling.badge}`}
                       >
                         {isProfitable ? '+' : ''}
-                        {item.avgPnlPercent.toFixed(1)}%
+                        {item.avgPnlPercent.toFixed(2)}%
                       </span>
                     </div>
 
-                    <div className="mt-1.5 text-xs font-bold text-white truncate">
-                      {displayMetric === 'PERCENT' ? (
-                        <span>{formatShortIdr(item.totalLabaBersih)}</span>
-                      ) : (
-                        <span>{item.avgPnlPercent.toFixed(2)}% ROI</span>
-                      )}
+                    {/* Main Visual Number */}
+                    <div className="mt-2">
+                      <span className="text-[10px] uppercase tracking-wider text-slate-400 block font-medium">
+                        {displayMetric === 'PERCENT' ? 'Laba Bersih' : 'Imbal Hasil ROI'}
+                      </span>
+                      <div
+                        className={`text-base font-semibold font-mono tracking-tight mt-0.5 tabular-nums ${
+                          isProfitable ? 'text-white' : 'text-rose-400'
+                        }`}
+                      >
+                        {displayMetric === 'PERCENT' ? (
+                          <span>
+                            {isProfitable ? '+' : ''}
+                            Rp {Math.round(item.totalLabaBersih).toLocaleString('id-ID')}
+                          </span>
+                        ) : (
+                          <span>
+                            {isProfitable ? '+' : ''}
+                            {item.avgPnlPercent.toFixed(2)}% ROI
+                          </span>
+                        )}
+                      </div>
                     </div>
 
-                    <div className="text-[10px] text-slate-400 mt-1 truncate">
-                      Rp {Math.round(item.totalNominal / 1000000)} Jt ({capitalShare.toFixed(0)}%)
+                    {/* Capital Allocation & Meta */}
+                    <div className="pt-2 mt-2 border-t border-[#1e2638] space-y-1 text-[11px]">
+                      <div className="flex items-center justify-between text-slate-300">
+                        <span className="text-slate-400 text-[10px]">Alokasi:</span>
+                        <span className="font-mono text-slate-200 tabular-nums">
+                          Rp {Math.round(item.totalNominal).toLocaleString('id-ID')}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between text-slate-400 text-[10px]">
+                        <span>Porsi:</span>
+                        <span className="font-mono text-slate-300 tabular-nums">
+                          {capitalShare.toFixed(1)}%
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between text-slate-400 text-[10px] pt-0.5">
+                        <span>Aktivitas:</span>
+                        <span className="text-slate-300">
+                          {item.tradeCount} trade{' '}
+                          {item.floatingCount > 0 ? `(${item.floatingCount} aktif)` : '(realized)'}
+                        </span>
+                      </div>
                     </div>
                   </div>
                 );
-              }
-
-              // Standard Full-Size Card View
-              return (
-                <div
-                  key={item.asset}
-                  onClick={() => onSelectAsset && onSelectAsset(item.asset)}
-                  className={`relative overflow-hidden rounded-2xl p-4 border transition-all duration-200 cursor-pointer ${styling.bg} ${styling.border} hover:scale-[1.02] active:scale-[0.99]`}
-                >
-                  {/* Subtle top glow bar */}
-                  <div
-                    className={`absolute inset-x-0 top-0 h-1 bg-gradient-to-r ${
-                      isProfitable ? 'from-emerald-400 to-teal-400' : 'from-rose-500 to-amber-500'
-                    }`}
-                  />
-
-                  {/* Ticker & Status Badges */}
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="font-extrabold text-base text-white tracking-tight">
-                      {item.asset}
-                    </span>
-                    <span
-                      className={`text-[10px] font-bold px-2 py-0.5 rounded-lg border ${styling.badge}`}
-                    >
-                      {isProfitable ? '+' : ''}
-                      {item.avgPnlPercent.toFixed(2)}%
-                    </span>
-                  </div>
-
-                  {/* Main Visual Number */}
-                  <div className="mt-2.5">
-                    <span className="text-[10px] text-slate-400 block">
-                      {displayMetric === 'PERCENT' ? 'Laba Bersih Akumulasi' : 'Imbal Hasil ROI'}
-                    </span>
-                    <div
-                      className={`text-lg font-extrabold tracking-tight mt-0.5 ${
-                        isProfitable ? 'text-white' : 'text-rose-400'
-                      }`}
-                    >
-                      {displayMetric === 'PERCENT' ? (
-                        <span>
-                          {isProfitable ? '+' : ''}
-                          Rp {Math.round(item.totalLabaBersih).toLocaleString('id-ID')}
-                        </span>
-                      ) : (
-                        <span>
-                          {isProfitable ? '+' : ''}
-                          {item.avgPnlPercent.toFixed(2)}% ROI
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Capital Allocation & Meta */}
-                  <div className="pt-2.5 mt-2.5 border-t border-white/10 space-y-1 text-[11px]">
-                    <div className="flex items-center justify-between text-slate-300">
-                      <span className="text-slate-400 text-[10px]">Alokasi Modal:</span>
-                      <span className="font-medium text-slate-200">
-                        Rp {Math.round(item.totalNominal).toLocaleString('id-ID')}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between text-slate-400 text-[10px]">
-                      <span>Porsi Portofolio:</span>
-                      <span className="font-semibold text-slate-300">
-                        {capitalShare.toFixed(1)}%
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between text-slate-400 text-[10px] pt-0.5">
-                      <span>Transaksi:</span>
-                      <span className="font-medium text-slate-300">
-                        {item.tradeCount} trade{' '}
-                        {item.floatingCount > 0 ? `(${item.floatingCount} aktif)` : '(realized)'}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              );
-            }))}
+              })
+            )}
           </div>
 
-          {/* Legend & Color Calibration Bar */}
-          <div className="flex flex-wrap items-center justify-between gap-3 pt-4 mt-4 border-t border-[#1b2234] text-[11px] text-slate-400">
+          {/* Legend & Calibration Bar */}
+          <div className="flex flex-wrap items-center justify-between gap-3 pt-3 mt-3 border-t border-[#1a2233] text-[11px] text-slate-400">
             <div className="flex items-center gap-2">
-              <span>Gradien Kinerja:</span>
-              <div className="flex items-center gap-1.5">
-                <span className="px-2 py-0.5 rounded bg-rose-500/20 text-rose-400 border border-rose-500/40 text-[10px] font-bold">
+              <span className="text-[10px] uppercase tracking-wider text-slate-400">Gradien:</span>
+              <div className="flex items-center gap-1.5 font-mono text-[10px]">
+                <span className="px-1.5 py-0.5 rounded bg-rose-500/15 text-rose-400 border border-rose-500/30">
                   &lt; -8%
                 </span>
-                <span className="px-2 py-0.5 rounded bg-amber-500/15 text-amber-300 border border-amber-500/30 text-[10px] font-semibold">
+                <span className="px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-300 border border-amber-500/25">
                   -8% s/d 0%
                 </span>
-                <span className="px-2 py-0.5 rounded bg-teal-500/15 text-teal-300 border border-teal-500/25 text-[10px] font-semibold">
+                <span className="px-1.5 py-0.5 rounded bg-teal-500/10 text-teal-300 border border-teal-500/25">
                   0% s/d +10%
                 </span>
-                <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[10px] font-semibold">
+                <span className="px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
                   +10% s/d +20%
                 </span>
-                <span className="px-2 py-0.5 rounded bg-emerald-500/30 text-emerald-300 border border-emerald-500/60 text-[10px] font-bold shadow-[0_0_10px_rgba(16,185,129,0.3)]">
+                <span className="px-1.5 py-0.5 rounded bg-emerald-500/25 text-emerald-300 border border-emerald-500/50">
                   &gt; +20%
                 </span>
               </div>
             </div>
 
             <div className="text-slate-500 text-[10px]">
-              *Klik kartu aset untuk memfokuskan analisis
+              Klik kartu aset untuk memfilter daftar transaksi
             </div>
           </div>
         </div>
