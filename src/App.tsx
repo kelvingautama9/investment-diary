@@ -40,7 +40,6 @@ export default function App() {
   const [activePage, setActivePage] = useState<ActivePage>('overview');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [selectedAsset, setSelectedAsset] = useState<string | null>(null);
-  const [copiedWhatsApp, setCopiedWhatsApp] = useState(false);
 
   // Auth state
   const [user, setUser] = useState<User | null>(null);
@@ -73,43 +72,6 @@ export default function App() {
     const time = new Date().toLocaleTimeString();
     setSyncLogs(prev => [`[${time}] ${msg}`, ...prev.slice(0, 49)]);
   }, []);
-
-  const handleCopyWhatsAppSummary = () => {
-    let totalNominalIdr = 0;
-    let totalLabaBersih = 0;
-    let floatingCount = 0;
-    let realizedCount = 0;
-    let winCount = 0;
-
-    records.forEach(r => {
-      if (isNonInvestmentOrExpense(r.asset) || isNonInvestmentOrExpense(r.type)) return;
-      totalLabaBersih += r.labaBersih || 0;
-      if (r.status === 'Floating') {
-        floatingCount++;
-        totalNominalIdr += r.nominalIdr || 0;
-      } else {
-        realizedCount++;
-        if (r.labaBersih > 0) winCount++;
-      }
-    });
-
-    const netRoi = totalNominalIdr > 0 ? (totalLabaBersih / totalNominalIdr) * 100 : 0;
-    const winRate = realizedCount > 0 ? (winCount / realizedCount) * 100 : 0;
-
-    const text = `📊 *RINGKASAN PORTOFOLIO INVESTASI*
-📅 Tanggal: ${new Date().toLocaleDateString('id-ID', { dateStyle: 'long' })}
-━━━━━━━━━━━━━━━━━━━━
-💰 *Modal Aktif:* Rp ${Math.round(totalNominalIdr).toLocaleString('id-ID')}
-📈 *Total Laba Bersih:* ${totalLabaBersih >= 0 ? '+' : ''}Rp ${Math.round(totalLabaBersih).toLocaleString('id-ID')} (${netRoi >= 0 ? '+' : ''}${netRoi.toFixed(2)}% ROI)
-🎯 *Win Rate Realized:* ${winRate.toFixed(0)}% (${winCount}/${realizedCount} Menang)
-📋 *Posisi Aktif:* ${floatingCount} aset terbuka
-━━━━━━━━━━━━━━━━━━━━
-Tersinkronisasi otomatis dengan Google Sheet.`;
-
-    navigator.clipboard.writeText(text);
-    setCopiedWhatsApp(true);
-    setTimeout(() => setCopiedWhatsApp(false), 2000);
-  };
 
   // Initialize Auth
   useEffect(() => {
@@ -401,8 +363,7 @@ Tersinkronisasi otomatis dengan Google Sheet.`;
         onConnectSheet={handleConnectSpreadsheet}
         lastSyncTime={lastSyncTime}
         onToggleSidebar={() => setIsSidebarCollapsed(prev => !prev)}
-        onCopyWhatsApp={handleCopyWhatsAppSummary}
-        copiedWhatsApp={copiedWhatsApp}
+        isSidebarCollapsed={isSidebarCollapsed}
       />
 
       {/* 2. Main Body with Collapsible Sidebar & Page Workspace */}

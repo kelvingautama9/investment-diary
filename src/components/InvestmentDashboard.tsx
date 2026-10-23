@@ -8,8 +8,6 @@ import {
   ArrowDownRight,
   TrendingUp,
   TrendingDown,
-  Share2,
-  Check,
   Plus,
   ArrowRight,
   Layers,
@@ -32,8 +30,6 @@ export const InvestmentDashboard: React.FC<InvestmentDashboardProps> = ({
   onOpenAddModal,
   onNavigateToTab,
 }) => {
-  const [copiedWA, setCopiedWA] = useState(false);
-
   // Apply date filter & strict non-investment filter (removes any transport/expense items)
   const filteredRecords = useMemo(() => {
     if (records.length === 0) return [];
@@ -175,25 +171,6 @@ export const InvestmentDashboard: React.FC<InvestmentDashboardProps> = ({
     { id: '1Y', label: '1Y' },
     { id: 'CUSTOM', label: 'Kustom' },
   ];
-
-  const handleCopyWhatsApp = () => {
-    const text = `📊 *RINGKASAN PORTOFOLIO INVESTASI*
-📅 Periode: ${dateFilter.preset === 'ALL' ? 'Seluruh Transaksi' : dateFilter.preset}
-━━━━━━━━━━━━━━━━━━━━
-💰 *Total Nilai Portofolio:* Rp ${grandTotalFloatingVal.toLocaleString('id-ID')}
-📈 *Total Laba Bersih:* ${metrics.totalLabaBersih >= 0 ? '+' : ''}Rp ${Math.round(metrics.totalLabaBersih).toLocaleString('id-ID')} (${metrics.netRoi >= 0 ? '+' : ''}${metrics.netRoi.toFixed(2)}% ROI)
-💼 *Modal Masuk Aktif:* Rp ${Math.round(metrics.totalNominalIdr).toLocaleString('id-ID')}
-🎯 *Win Rate Selesai:* ${metrics.winRate.toFixed(0)}% (${metrics.winCount}/${metrics.closedCount} Menang)
-
-🔥 *Posisi Aset Aktif:*
-${assetSummaries.slice(0, 5).map(a => `• *${a.asset}:* Rp ${Math.round(a.valueTotalIdr / 1000000)} Jt (${a.pnlPercent >= 0 ? '+' : ''}${a.pnlPercent.toFixed(1)}%)`).join('\n')}
-━━━━━━━━━━━━━━━━━━━━
-Tersinkronisasi otomatis dengan Google Sheet.`;
-
-    navigator.clipboard.writeText(text);
-    setCopiedWA(true);
-    setTimeout(() => setCopiedWA(false), 2000);
-  };
 
   return (
     <div className="space-y-3.5 select-none">
@@ -457,28 +434,19 @@ Tersinkronisasi otomatis dengan Google Sheet.`;
               </div>
             </div>
 
-            {/* Salin Format WhatsApp Action Button (Matches reference image!) */}
-            <div className="pt-2 border-t border-[#1a2233] space-y-2">
-              <button
-                type="button"
-                onClick={handleCopyWhatsApp}
-                className="w-full py-2.5 px-3 rounded-md text-xs font-semibold text-white bg-[#b44e26] hover:bg-[#c6572b] transition-colors flex items-center justify-center gap-2 shadow-xs"
-              >
-                {copiedWA ? <Check className="w-4 h-4 text-emerald-300" /> : <Share2 className="w-4 h-4" />}
-                <span>{copiedWA ? 'Format WhatsApp Tersalin!' : 'Salin Format WhatsApp'}</span>
-              </button>
-
-              {onOpenAddModal && (
+            {/* Primary Action Button */}
+            {onOpenAddModal && (
+              <div className="pt-2 border-t border-[#1a2233]">
                 <button
                   type="button"
                   onClick={onOpenAddModal}
-                  className="w-full py-2 px-3 rounded-md text-xs font-medium text-slate-300 bg-[#161d2d] hover:bg-[#1e273d] border border-[#222c42] transition-colors flex items-center justify-center gap-1.5"
+                  className="w-full py-2.5 px-3 rounded-md text-xs font-semibold text-white bg-blue-600 hover:bg-blue-500 transition-colors flex items-center justify-center gap-1.5 shadow-sm"
                 >
                   <Plus className="w-3.5 h-3.5" />
                   <span>Tambah Posisi Baru</span>
                 </button>
-              )}
-            </div>
+              </div>
+            )}
           </div>
         </div>
       </div>

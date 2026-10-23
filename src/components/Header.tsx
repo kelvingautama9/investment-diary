@@ -16,7 +16,6 @@ import {
   User as UserIcon,
   Check,
   Menu,
-  Share2,
 } from 'lucide-react';
 
 interface HeaderProps {
@@ -35,8 +34,7 @@ interface HeaderProps {
   onConnectSheet: (urlOrId: string, tabName?: string) => void;
   lastSyncTime: Date | null;
   onToggleSidebar?: () => void;
-  onCopyWhatsApp?: () => void;
-  copiedWhatsApp?: boolean;
+  isSidebarCollapsed?: boolean;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -55,8 +53,7 @@ export const Header: React.FC<HeaderProps> = ({
   onConnectSheet,
   lastSyncTime,
   onToggleSidebar,
-  onCopyWhatsApp,
-  copiedWhatsApp = false,
+  isSidebarCollapsed,
 }) => {
   const [userDropdown, setUserDropdown] = useState(false);
   const [sheetDropdownOpen, setSheetDropdownOpen] = useState(false);
@@ -91,27 +88,22 @@ export const Header: React.FC<HeaderProps> = ({
       )}
 
       <div className="w-full px-3 sm:px-5 h-13 flex items-center justify-between gap-3">
-        {/* Zone 1: Sidebar Toggle & Brand */}
-        <div className="flex items-center gap-2.5 shrink-0">
+        {/* Zone 1: Sidebar Toggle & Brand (without ID logo) */}
+        <div className="flex items-center gap-2 shrink-0">
           {onToggleSidebar && (
             <button
               type="button"
               onClick={onToggleSidebar}
-              title="Toggle Sidebar Aset"
+              title={isSidebarCollapsed ? 'Tampilkan Sidebar' : 'Sembunyikan Sidebar'}
               className="p-1.5 rounded-md text-slate-400 hover:text-white hover:bg-[#161d2d] transition-colors"
             >
               <Menu className="w-4 h-4" />
             </button>
           )}
 
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded bg-[#141a27] border border-[#232d42] flex items-center justify-center text-blue-400 font-bold text-[11px] font-mono">
-              ID
-            </div>
-            <span className="font-semibold text-xs tracking-tight text-white whitespace-nowrap hidden sm:inline">
-              Investment Diary
-            </span>
-          </div>
+          <span className="font-semibold text-xs tracking-tight text-white whitespace-nowrap">
+            Investment Diary
+          </span>
         </div>
 
         {/* Zone 2: Navigation Links (Clean Multi-Page Segmented Tab Strip) */}
@@ -137,21 +129,8 @@ export const Header: React.FC<HeaderProps> = ({
           })}
         </nav>
 
-        {/* Zone 3: Actions - WhatsApp Copy & Connection Actions */}
+        {/* Zone 3: Connection & Sync Actions */}
         <div className="flex items-center gap-2 shrink-0">
-          {/* Copy WhatsApp Button (Matches reference image's 'Copy WhatsApp' feature) */}
-          {onCopyWhatsApp && (
-            <button
-              type="button"
-              onClick={onCopyWhatsApp}
-              title="Salin rekap performa portofolio ke format pesan WhatsApp"
-              className="flex items-center gap-1 px-2.5 py-1 rounded text-xs font-medium text-white bg-[#b44e26] hover:bg-[#c6572b] transition-colors shadow-xs"
-            >
-              <Share2 className="w-3.5 h-3.5" />
-              <span className="hidden md:inline">{copiedWhatsApp ? 'Tersalin!' : 'Copy WhatsApp'}</span>
-              <span className="md:hidden">WA</span>
-            </button>
-          )}
           {/* Active Syncing State */}
           {isSyncing ? (
             <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-[#111622] border border-[#1e273a] text-slate-300 text-xs">

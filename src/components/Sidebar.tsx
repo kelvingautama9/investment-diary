@@ -4,8 +4,6 @@ import { isNonInvestmentOrExpense } from '../services/googleSheets';
 import {
   Plus,
   Search,
-  ChevronLeft,
-  ChevronRight,
   TrendingUp,
   TrendingDown,
   Edit2,
@@ -21,7 +19,7 @@ import {
 interface SidebarProps {
   records: InvestmentRecord[];
   isCollapsed: boolean;
-  onToggleCollapse: () => void;
+  onToggleCollapse?: () => void;
   selectedAsset: string | null;
   onSelectAsset: (asset: string | null) => void;
   onOpenAddModal: () => void;
@@ -36,7 +34,7 @@ interface SidebarProps {
 export const Sidebar: React.FC<SidebarProps> = ({
   records,
   isCollapsed,
-  onToggleCollapse,
+  onToggleCollapse: _onToggleCollapse,
   selectedAsset,
   onSelectAsset,
   onOpenAddModal,
@@ -173,100 +171,41 @@ export const Sidebar: React.FC<SidebarProps> = ({
     document.body.removeChild(link);
   };
 
-  // If collapsed: show slim column with toggle button & quick add
-  if (isCollapsed) {
-    return (
-      <aside className="w-12 shrink-0 bg-[#0c0f17] border-r border-[#1e2638] flex flex-col items-center py-3 gap-3 select-none">
-        <button
-          type="button"
-          onClick={onToggleCollapse}
-          title="Buka Sidebar (Aset & Transaksi)"
-          className="p-1.5 rounded-md text-slate-400 hover:text-white hover:bg-[#161d2d] transition-colors"
-        >
-          <ChevronRight className="w-4 h-4" />
-        </button>
-
-        <button
-          type="button"
-          onClick={onOpenAddModal}
-          title="Tambah Transaksi Baru"
-          className="w-8 h-8 rounded-md bg-blue-600 hover:bg-blue-500 text-white flex items-center justify-center transition-colors shadow-sm"
-        >
-          <Plus className="w-4 h-4" />
-        </button>
-
-        <div className="w-6 h-[1px] bg-[#1e2638] my-1" />
-
-        <div className="flex-1 flex flex-col items-center gap-1.5 overflow-y-auto no-scrollbar w-full px-1">
-          {assetAggregates.slice(0, 8).map(item => (
+  return (
+    <aside
+      className={`h-[calc(100vh-3.25rem)] sticky top-13 bg-[#0c0f17] shrink-0 transition-[width,border-color] duration-300 ease-in-out overflow-hidden z-30 select-none ${
+        isCollapsed ? 'w-0 border-r-0' : 'w-72 border-r border-[#1e2638]'
+      }`}
+      aria-hidden={isCollapsed}
+    >
+      <div className="w-72 h-full flex flex-col">
+        {/* 1. Header Toolbar: Tabs */}
+        <div className="p-2.5 border-b border-[#1a2233] flex items-center justify-between gap-1.5 bg-[#090c12]">
+          <div className="flex items-center gap-1 bg-[#121724] p-0.5 rounded-md border border-[#1e2638] w-full">
             <button
-              key={item.asset}
               type="button"
-              onClick={() =>
-                onSelectAsset(selectedAsset === item.asset ? null : item.asset)
-              }
-              title={`${item.asset}: ${item.pnlPercent >= 0 ? '+' : ''}${item.pnlPercent.toFixed(1)}%`}
-              className={`w-9 py-1 rounded text-[10px] font-mono font-semibold transition-colors truncate ${
-                selectedAsset === item.asset
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-[#141a29] text-slate-300 hover:text-white hover:bg-[#1a2233]'
+              onClick={() => setSidebarTab('assets')}
+              className={`flex-1 py-1 rounded text-[11px] font-medium transition-colors text-center ${
+                sidebarTab === 'assets'
+                  ? 'bg-[#1a2337] text-white shadow-xs'
+                  : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              {item.asset.slice(0, 4)}
+              Aset Portofolio
             </button>
-          ))}
+            <button
+              type="button"
+              onClick={() => setSidebarTab('history')}
+              className={`flex-1 py-1 rounded text-[11px] font-medium transition-colors text-center ${
+                sidebarTab === 'history'
+                  ? 'bg-[#1a2337] text-white shadow-xs'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              Riwayat
+            </button>
+          </div>
         </div>
-
-        <div className="pt-2 border-t border-[#1e2638] flex flex-col items-center gap-2">
-          <span
-            className={`w-2 h-2 rounded-full ${
-              sheetConnected ? 'bg-emerald-400' : 'bg-slate-600'
-            }`}
-            title={sheetConnected ? `Google Sheet: Tab ${sheetTitle}` : 'Google Sheet Terputus'}
-          />
-        </div>
-      </aside>
-    );
-  }
-
-  return (
-    <aside className="w-64 sm:w-72 shrink-0 bg-[#0c0f17] border-r border-[#1e2638] flex flex-col h-[calc(100vh-3.5rem)] sticky top-14 select-none z-30">
-      {/* 1. Header Toolbar: Tabs & Collapse Button */}
-      <div className="p-2.5 border-b border-[#1a2233] flex items-center justify-between gap-1.5 bg-[#090c12]">
-        <div className="flex items-center gap-1 bg-[#121724] p-0.5 rounded-md border border-[#1e2638]">
-          <button
-            type="button"
-            onClick={() => setSidebarTab('assets')}
-            className={`px-2 py-1 rounded text-[11px] font-medium transition-colors ${
-              sidebarTab === 'assets'
-                ? 'bg-[#1a2337] text-white shadow-xs'
-                : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            Aset Portofolio
-          </button>
-          <button
-            type="button"
-            onClick={() => setSidebarTab('history')}
-            className={`px-2 py-1 rounded text-[11px] font-medium transition-colors ${
-              sidebarTab === 'history'
-                ? 'bg-[#1a2337] text-white shadow-xs'
-                : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            Riwayat
-          </button>
-        </div>
-
-        <button
-          type="button"
-          onClick={onToggleCollapse}
-          title="Tutup Sidebar"
-          className="p-1 rounded text-slate-400 hover:text-white hover:bg-[#161d2d] transition-colors"
-        >
-          <ChevronLeft className="w-4 h-4" />
-        </button>
-      </div>
 
       {/* 2. Primary Action Button (Matches '+ Tambah Customer Baru' style from reference) */}
       <div className="p-2.5 pb-2">
@@ -490,6 +429,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           {validRecords.length} baris
         </span>
       </div>
-    </aside>
-  );
+    </div>
+  </aside>
+);
 };
