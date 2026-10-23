@@ -2,7 +2,9 @@ import React, { useState } from 'react';
 import type { User } from 'firebase/auth';
 import type { ActivePage } from '../types';
 import {
-  PieChart,
+  LayoutDashboard,
+  Grid3X3,
+  Table,
   FileSpreadsheet,
   RefreshCw,
   LogOut,
@@ -13,6 +15,8 @@ import {
   X,
   User as UserIcon,
   Check,
+  Menu,
+  Share2,
 } from 'lucide-react';
 
 interface HeaderProps {
@@ -30,6 +34,9 @@ interface HeaderProps {
   onDisconnectSheet: () => void;
   onConnectSheet: (urlOrId: string, tabName?: string) => void;
   lastSyncTime: Date | null;
+  onToggleSidebar?: () => void;
+  onCopyWhatsApp?: () => void;
+  copiedWhatsApp?: boolean;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -47,6 +54,9 @@ export const Header: React.FC<HeaderProps> = ({
   onDisconnectSheet,
   onConnectSheet,
   lastSyncTime,
+  onToggleSidebar,
+  onCopyWhatsApp,
+  copiedWhatsApp = false,
 }) => {
   const [userDropdown, setUserDropdown] = useState(false);
   const [sheetDropdownOpen, setSheetDropdownOpen] = useState(false);
@@ -58,7 +68,9 @@ export const Header: React.FC<HeaderProps> = ({
   const [customTabInput, setCustomTabInput] = useState('');
 
   const navItems: Array<{ id: ActivePage; label: string; icon: React.FC<{ className?: string }> }> = [
-    { id: 'portfolio', label: 'Rekap Investasi', icon: PieChart },
+    { id: 'overview', label: 'Ringkasan', icon: LayoutDashboard },
+    { id: 'heatmap', label: 'Peta Aset', icon: Grid3X3 },
+    { id: 'ledger', label: 'Database', icon: Table },
     { id: 'settings', label: 'Koneksi Sheet', icon: FileSpreadsheet },
   ];
 
@@ -69,6 +81,8 @@ export const Header: React.FC<HeaderProps> = ({
     setConnectPopoverOpen(false);
   };
 
+  const normalizedActivePage = activePage === 'portfolio' ? 'overview' : activePage;
+
   return (
     <header className="sticky top-0 z-40 bg-[#080a0f] border-b border-[#1a2233] text-xs">
       {/* Subtle sync progress line */}
@@ -76,30 +90,43 @@ export const Header: React.FC<HeaderProps> = ({
         <div className="absolute bottom-0 left-0 right-0 h-[1.5px] bg-blue-500 animate-pulse z-50" />
       )}
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-4">
-        {/* Zone 1: Clean Typography Brand */}
-        <div className="flex items-center gap-3 shrink-0">
-          <div className="w-7 h-7 rounded-lg bg-[#141a27] border border-[#232d42] flex items-center justify-center text-blue-400 font-bold text-xs">
-            ID
+      <div className="w-full px-3 sm:px-5 h-13 flex items-center justify-between gap-3">
+        {/* Zone 1: Sidebar Toggle & Brand */}
+        <div className="flex items-center gap-2.5 shrink-0">
+          {onToggleSidebar && (
+            <button
+              type="button"
+              onClick={onToggleSidebar}
+              title="Toggle Sidebar Aset"
+              className="p-1.5 rounded-md text-slate-400 hover:text-white hover:bg-[#161d2d] transition-colors"
+            >
+              <Menu className="w-4 h-4" />
+            </button>
+          )}
+
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 rounded bg-[#141a27] border border-[#232d42] flex items-center justify-center text-blue-400 font-bold text-[11px] font-mono">
+              ID
+            </div>
+            <span className="font-semibold text-xs tracking-tight text-white whitespace-nowrap hidden sm:inline">
+              Investment Diary
+            </span>
           </div>
-          <span className="font-bold text-sm tracking-tight text-white whitespace-nowrap">
-            Investment Diary
-          </span>
         </div>
 
-        {/* Zone 2: Navigation Links (Clean Segmented Tab Strip) */}
-        <nav className="flex items-center gap-1 bg-[#0d111a] p-1 rounded-lg border border-[#1a2233]">
+        {/* Zone 2: Navigation Links (Clean Multi-Page Segmented Tab Strip) */}
+        <nav className="flex items-center gap-1 bg-[#0c0f17] p-0.5 rounded-md border border-[#1a2233] overflow-x-auto no-scrollbar">
           {navItems.map(item => {
             const Icon = item.icon;
-            const isActive = activePage === item.id;
+            const isActive = normalizedActivePage === item.id;
             return (
               <button
                 key={item.id}
                 type="button"
                 onClick={() => onSelectPage(item.id)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors whitespace-nowrap ${
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-colors whitespace-nowrap ${
                   isActive
-                    ? 'bg-[#182030] text-white shadow-sm'
+                    ? 'bg-[#182030] text-white shadow-xs'
                     : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
@@ -110,8 +137,21 @@ export const Header: React.FC<HeaderProps> = ({
           })}
         </nav>
 
-        {/* Zone 3: Sync & Connection Actions */}
+        {/* Zone 3: Actions - WhatsApp Copy & Connection Actions */}
         <div className="flex items-center gap-2 shrink-0">
+          {/* Copy WhatsApp Button (Matches reference image's 'Copy WhatsApp' feature) */}
+          {onCopyWhatsApp && (
+            <button
+              type="button"
+              onClick={onCopyWhatsApp}
+              title="Salin rekap performa portofolio ke format pesan WhatsApp"
+              className="flex items-center gap-1 px-2.5 py-1 rounded text-xs font-medium text-white bg-[#b44e26] hover:bg-[#c6572b] transition-colors shadow-xs"
+            >
+              <Share2 className="w-3.5 h-3.5" />
+              <span className="hidden md:inline">{copiedWhatsApp ? 'Tersalin!' : 'Copy WhatsApp'}</span>
+              <span className="md:hidden">WA</span>
+            </button>
+          )}
           {/* Active Syncing State */}
           {isSyncing ? (
             <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-[#111622] border border-[#1e273a] text-slate-300 text-xs">

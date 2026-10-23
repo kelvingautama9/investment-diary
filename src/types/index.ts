@@ -187,7 +187,7 @@ export interface DateFilter {
   endDate?: string;
 }
 
-export type ActivePage = 'portfolio' | 'settings';
+export type ActivePage = 'overview' | 'heatmap' | 'ledger' | 'settings' | 'portfolio';
 
 export interface MarketTicker {
   symbol: string;

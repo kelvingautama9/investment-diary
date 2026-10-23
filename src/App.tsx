@@ -26,7 +26,9 @@ import {
 } from './services/googleSheets';
 
 import { Header } from './components/Header';
+import { Sidebar } from './components/Sidebar';
 import { InvestmentDashboard } from './components/InvestmentDashboard';
+import { AssetPerformanceHeatmap } from './components/AssetPerformanceHeatmap';
 import { TradeLedgerTable } from './components/TradeLedgerTable';
 import { GoogleSheetSettingsPage } from './components/GoogleSheetSettingsPage';
 import { AddEditTradeModal } from './components/AddEditTradeModal';
@@ -34,8 +36,11 @@ import { DeleteConfirmModal } from './components/DeleteConfirmModal';
 import { Globe, Copy, Check, ExternalLink, AlertTriangle, X, Settings2, Key, Link2, ChevronDown, Sparkles } from 'lucide-react';
 
 export default function App() {
-  // Navigation State - only 'portfolio' and 'settings'
-  const [activePage, setActivePage] = useState<ActivePage>('portfolio');
+  // Navigation State - 'overview' | 'heatmap' | 'ledger' | 'settings'
+  const [activePage, setActivePage] = useState<ActivePage>('overview');
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [selectedAsset, setSelectedAsset] = useState<string | null>(null);
+  const [copiedWhatsApp, setCopiedWhatsApp] = useState(false);
 
   // Auth state
   const [user, setUser] = useState<User | null>(null);
@@ -68,6 +73,43 @@ export default function App() {
     const time = new Date().toLocaleTimeString();
     setSyncLogs(prev => [`[${time}] ${msg}`, ...prev.slice(0, 49)]);
   }, []);
+
+  const handleCopyWhatsAppSummary = () => {
+    let totalNominalIdr = 0;
+    let totalLabaBersih = 0;
+    let floatingCount = 0;
+    let realizedCount = 0;
+    let winCount = 0;
+
+    records.forEach(r => {
+      if (isNonInvestmentOrExpense(r.asset) || isNonInvestmentOrExpense(r.type)) return;
+      totalLabaBersih += r.labaBersih || 0;
+      if (r.status === 'Floating') {
+        floatingCount++;
+        totalNominalIdr += r.nominalIdr || 0;
+      } else {
+        realizedCount++;
+        if (r.labaBersih > 0) winCount++;
+      }
+    });
+
+    const netRoi = totalNominalIdr > 0 ? (totalLabaBersih / totalNominalIdr) * 100 : 0;
+    const winRate = realizedCount > 0 ? (winCount / realizedCount) * 100 : 0;
+
+    const text = `📊 *RINGKASAN PORTOFOLIO INVESTASI*
+📅 Tanggal: ${new Date().toLocaleDateString('id-ID', { dateStyle: 'long' })}
+━━━━━━━━━━━━━━━━━━━━
+💰 *Modal Aktif:* Rp ${Math.round(totalNominalIdr).toLocaleString('id-ID')}
+📈 *Total Laba Bersih:* ${totalLabaBersih >= 0 ? '+' : ''}Rp ${Math.round(totalLabaBersih).toLocaleString('id-ID')} (${netRoi >= 0 ? '+' : ''}${netRoi.toFixed(2)}% ROI)
+🎯 *Win Rate Realized:* ${winRate.toFixed(0)}% (${winCount}/${realizedCount} Menang)
+📋 *Posisi Aktif:* ${floatingCount} aset terbuka
+━━━━━━━━━━━━━━━━━━━━
+Tersinkronisasi otomatis dengan Google Sheet.`;
+
+    navigator.clipboard.writeText(text);
+    setCopiedWhatsApp(true);
+    setTimeout(() => setCopiedWhatsApp(false), 2000);
+  };
 
   // Initialize Auth
   useEffect(() => {
@@ -342,7 +384,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-[#080a0f] text-slate-100 flex flex-col font-sans selection:bg-blue-600/30 selection:text-blue-200">
-      {/* 1. Header */}
+      {/* 1. Header with Multi-Page Navigation and Quick Actions */}
       <Header
         activePage={activePage}
         onSelectPage={setActivePage}
@@ -358,59 +400,147 @@ export default function App() {
         onDisconnectSheet={handleDisconnectSpreadsheet}
         onConnectSheet={handleConnectSpreadsheet}
         lastSyncTime={lastSyncTime}
+        onToggleSidebar={() => setIsSidebarCollapsed(prev => !prev)}
+        onCopyWhatsApp={handleCopyWhatsAppSummary}
+        copiedWhatsApp={copiedWhatsApp}
       />
 
-      {/* 2. Main Page Content */}
-      <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 space-y-5">
-        {/* Page 1: Portfolio & Rekap Investasi */}
-        {activePage === 'portfolio' && (
-          <div className="space-y-5">
-            <InvestmentDashboard
-              records={records}
-              dateFilter={dateFilter}
-              onDateFilterChange={setDateFilter}
-            />
+      {/* 2. Main Body with Collapsible Sidebar & Page Workspace */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* Left Collapsible Sidebar */}
+        <Sidebar
+          records={records}
+          isCollapsed={isSidebarCollapsed}
+          onToggleCollapse={() => setIsSidebarCollapsed(prev => !prev)}
+          selectedAsset={selectedAsset}
+          onSelectAsset={asset => {
+            setSelectedAsset(asset);
+            if (asset && activePage === 'settings') {
+              setActivePage('overview');
+            }
+          }}
+          onOpenAddModal={() => {
+            setEditingRecord(null);
+            setIsAddEditModalOpen(true);
+          }}
+          onOpenEditModal={rec => {
+            setEditingRecord(rec);
+            setIsAddEditModalOpen(true);
+          }}
+          onOpenDeleteModal={rec => {
+            setRecordToDelete(rec);
+            setIsDeleteModalOpen(true);
+          }}
+          sheetConnected={sheetConnected}
+          sheetTitle={sheetTitle}
+          isSyncing={isSyncing}
+          onManualSync={() => syncWithGoogleSheet()}
+        />
 
-            <TradeLedgerTable
-              records={records}
-              onOpenAddModal={() => {
-                setEditingRecord(null);
-                setIsAddEditModalOpen(true);
-              }}
-              onOpenEditModal={rec => {
-                setEditingRecord(rec);
-                setIsAddEditModalOpen(true);
-              }}
-              onOpenDeleteModal={rec => {
-                setRecordToDelete(rec);
-                setIsDeleteModalOpen(true);
-              }}
-              sheetConnected={sheetConnected}
-              sheetTitle={sheetTitle}
-              onDisconnectSheet={handleDisconnectSpreadsheet}
-              isSyncing={isSyncing}
-              onManualSync={() => syncWithGoogleSheet()}
-            />
+        {/* Main Page Content Workspace */}
+        <main className="flex-1 overflow-y-auto p-3 sm:p-4.5 bg-[#080a0f]">
+          <div className="max-w-[1440px] mx-auto">
+            {/* Page 1: Ringkasan Portofolio (Overview) */}
+            {(activePage === 'overview' || activePage === 'portfolio') && (
+              <InvestmentDashboard
+                records={records}
+                dateFilter={dateFilter}
+                onDateFilterChange={setDateFilter}
+                onSelectAssetForChart={symbol => setSelectedAsset(symbol)}
+                onOpenAddModal={() => {
+                  setEditingRecord(null);
+                  setIsAddEditModalOpen(true);
+                }}
+                onNavigateToTab={setActivePage}
+              />
+            )}
+
+            {/* Page 2: Peta Aset (Performance Heatmap Matrix) */}
+            {activePage === 'heatmap' && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between pb-2 border-b border-[#1a2233]">
+                  <div>
+                    <h1 className="text-sm font-semibold text-white tracking-tight">
+                      Peta Kinerja &amp; Sebaran Aset Portofolio
+                    </h1>
+                    <p className="text-[11px] text-slate-400 mt-0.5">
+                      Visualisasi matrix heatmap return dan alokasi modal per aset
+                    </p>
+                  </div>
+                </div>
+
+                <AssetPerformanceHeatmap
+                  records={records}
+                  onSelectAsset={symbol => {
+                    setSelectedAsset(symbol);
+                    setActivePage('ledger');
+                  }}
+                />
+              </div>
+            )}
+
+            {/* Page 3: Database (Buku Transaksi / Ledger) */}
+            {activePage === 'ledger' && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between pb-2 border-b border-[#1a2233]">
+                  <div>
+                    <h1 className="text-sm font-semibold text-white tracking-tight">
+                      Database &amp; Rekap Buku Transaksi
+                    </h1>
+                    <p className="text-[11px] text-slate-400 mt-0.5">
+                      Kelola baris transaksi Google Sheet tab "{sheetTitle}" secara real-time
+                    </p>
+                  </div>
+                </div>
+
+                <TradeLedgerTable
+                  records={
+                    selectedAsset
+                      ? records.filter(
+                          r => r.asset.toUpperCase() === selectedAsset.toUpperCase()
+                        )
+                      : records
+                  }
+                  onOpenAddModal={() => {
+                    setEditingRecord(null);
+                    setIsAddEditModalOpen(true);
+                  }}
+                  onOpenEditModal={rec => {
+                    setEditingRecord(rec);
+                    setIsAddEditModalOpen(true);
+                  }}
+                  onOpenDeleteModal={rec => {
+                    setRecordToDelete(rec);
+                    setIsDeleteModalOpen(true);
+                  }}
+                  sheetConnected={sheetConnected}
+                  sheetTitle={sheetTitle}
+                  onDisconnectSheet={handleDisconnectSpreadsheet}
+                  isSyncing={isSyncing}
+                  onManualSync={() => syncWithGoogleSheet()}
+                />
+              </div>
+            )}
+
+            {/* Page 4: Pengaturan Koneksi Google Sheet */}
+            {activePage === 'settings' && (
+              <GoogleSheetSettingsPage
+                spreadsheetId={spreadsheetId}
+                onConnectSpreadsheet={handleConnectSpreadsheet}
+                onDisconnectSpreadsheet={handleDisconnectSpreadsheet}
+                accessToken={accessToken}
+                sheetConnected={sheetConnected}
+                sheetTitle={sheetTitle}
+                isSyncing={isSyncing}
+                lastSyncTime={lastSyncTime}
+                autoSyncInterval={autoSyncInterval}
+                onAutoSyncIntervalChange={setAutoSyncInterval}
+                syncLogs={syncLogs}
+              />
+            )}
           </div>
-        )}
-
-        {/* Page 2: Pengaturan Koneksi Google Sheet */}
-        {activePage === 'settings' && (
-          <GoogleSheetSettingsPage
-            spreadsheetId={spreadsheetId}
-            onConnectSpreadsheet={handleConnectSpreadsheet}
-            onDisconnectSpreadsheet={handleDisconnectSpreadsheet}
-            accessToken={accessToken}
-            sheetConnected={sheetConnected}
-            sheetTitle={sheetTitle}
-            isSyncing={isSyncing}
-            lastSyncTime={lastSyncTime}
-            autoSyncInterval={autoSyncInterval}
-            onAutoSyncIntervalChange={setAutoSyncInterval}
-            syncLogs={syncLogs}
-          />
-        )}
-      </main>
+        </main>
+      </div>
 
       {/* 4. Add / Edit Trade Modal */}
       <AddEditTradeModal

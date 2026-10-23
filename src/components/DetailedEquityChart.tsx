@@ -343,10 +343,10 @@ export const DetailedEquityChart: React.FC<DetailedEquityChartProps> = ({ record
   };
 
   return (
-    <div className="w-full select-none rounded-xl bg-[#0f131c] border border-[#1e2638] p-5 sm:p-6">
-      <div className="flex flex-col gap-4">
+    <div className="w-full select-none rounded-xl bg-[#0c0f17] border border-[#1e2638] p-3.5 sm:p-4">
+      <div className="flex flex-col gap-3">
         {/* Header Balance Banner with Mode Toggle */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
           <div>
             <div className="flex items-center gap-2 text-xs text-slate-400">
               <span className="font-medium text-slate-300">
@@ -357,9 +357,9 @@ export const DetailedEquityChart: React.FC<DetailedEquityChartProps> = ({ record
               <span className="text-slate-600">·</span>
               <span className="text-slate-400">Database Sheet</span>
             </div>
-            <div className="flex flex-wrap items-baseline gap-2.5 sm:gap-3.5 mt-1.5">
+            <div className="flex flex-wrap items-baseline gap-2 mt-1">
               <span
-                className={`text-2xl sm:text-3xl font-bold tracking-tight font-mono tabular-nums ${
+                className={`text-xl sm:text-2xl font-bold tracking-tight font-mono tabular-nums ${
                   currentBalance >= 0 ? 'text-white' : 'text-rose-400'
                 }`}
               >
@@ -485,7 +485,7 @@ export const DetailedEquityChart: React.FC<DetailedEquityChartProps> = ({ record
           <div className="grow mt-1">
             <ChartContainer
               config={chartConfig}
-              className="h-80 w-full [&_.recharts-curve.recharts-tooltip-cursor]:stroke-initial"
+              className="h-64 sm:h-72 w-full [&_.recharts-curve.recharts-tooltip-cursor]:stroke-initial"
             >
               <ComposedChart
                 data={(chartType === 'line' ? lineChartData : barChartData) as any}
