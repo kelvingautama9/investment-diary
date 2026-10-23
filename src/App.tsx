@@ -345,7 +345,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#080a0f] text-slate-100 flex flex-col font-sans selection:bg-blue-600/30 selection:text-blue-200">
+    <div className="min-h-screen bg-[#f6f4ee] dark:bg-[#080a0f] text-[#1c1917] dark:text-slate-100 flex flex-col font-sans selection:bg-blue-600/20 dark:selection:bg-blue-600/30 selection:text-blue-900 dark:selection:text-blue-200 paper-matte-bg transition-colors duration-200">
       {/* 1. Header with Multi-Page Navigation and Quick Actions */}
       <Header
         activePage={activePage}
@@ -399,7 +399,7 @@ export default function App() {
         />
 
         {/* Main Page Content Workspace */}
-        <main className="flex-1 overflow-y-auto p-3 sm:p-4.5 bg-[#080a0f]">
+        <main className="flex-1 overflow-y-auto p-3 sm:p-4.5 bg-[#f6f4ee] dark:bg-[#080a0f] paper-matte-bg">
           <div className="max-w-[1440px] mx-auto">
             {/* Page 1: Ringkasan Portofolio (Overview) */}
             {(activePage === 'overview' || activePage === 'portfolio') && (
@@ -419,12 +419,12 @@ export default function App() {
             {/* Page 2: Peta Aset (Performance Heatmap Matrix) */}
             {activePage === 'heatmap' && (
               <div className="space-y-3">
-                <div className="flex items-center justify-between pb-2 border-b border-[#1a2233]">
+                <div className="flex items-center justify-between pb-2 border-b border-[#e5e0d5] dark:border-[#1a2233]">
                   <div>
-                    <h1 className="text-sm font-semibold text-white tracking-tight">
+                    <h1 className="text-sm font-semibold text-[#1c1917] dark:text-white tracking-tight">
                       Peta Kinerja &amp; Sebaran Aset Portofolio
                     </h1>
-                    <p className="text-[11px] text-slate-400 mt-0.5">
+                    <p className="text-[11px] text-[#6e685f] dark:text-slate-400 mt-0.5">
                       Visualisasi matrix heatmap return dan alokasi modal per aset
                     </p>
                   </div>
@@ -443,12 +443,12 @@ export default function App() {
             {/* Page 3: Database (Buku Transaksi / Ledger) */}
             {activePage === 'ledger' && (
               <div className="space-y-3">
-                <div className="flex items-center justify-between pb-2 border-b border-[#1a2233]">
+                <div className="flex items-center justify-between pb-2 border-b border-[#e5e0d5] dark:border-[#1a2233]">
                   <div>
-                    <h1 className="text-sm font-semibold text-white tracking-tight">
+                    <h1 className="text-sm font-semibold text-[#1c1917] dark:text-white tracking-tight">
                       Database &amp; Rekap Buku Transaksi
                     </h1>
-                    <p className="text-[11px] text-slate-400 mt-0.5">
+                    <p className="text-[11px] text-[#6e685f] dark:text-slate-400 mt-0.5">
                       Kelola baris transaksi Google Sheet tab "{sheetTitle}" secara real-time
                     </p>
                   </div>

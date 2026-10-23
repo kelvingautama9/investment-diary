@@ -1,22 +1,69 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @layer base {
-  * {
-    border-color: #1a2233;
+  :root, html.light {
+    --bg-app: #f6f4ee;
+    --bg-card: #ffffff;
+    --bg-sidebar: #fbf9f4;
+    --bg-subtle: #f0ece1;
+    --border-main: #e2ded5;
+    --border-card: #e4dfd5;
+    --text-primary: #1c1917;
+    --text-secondary: #57534e;
+    --text-muted: #78716c;
+    color-scheme: light;
+  }
+
+  html.dark {
+    --bg-app: #080a0f;
+    --bg-card: #0c0f17;
+    --bg-sidebar: #0c0f17;
+    --bg-subtle: #121724;
+    --border-main: #1a2233;
+    --border-card: #1e2638;
+    --text-primary: #f8fafc;
+    --text-secondary: #94a3b8;
+    --text-muted: #64748b;
+    color-scheme: dark;
   }
 
   body {
     font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
-    background-color: #080a0f;
-    color: #e2e8f0;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     overflow-x: hidden;
+    transition: background-color 0.2s ease, color 0.2s ease;
+  }
+
+  html.dark body {
+    background-color: #080a0f;
+    color: #e2e8f0;
+  }
+
+  html.light body {
+    background-color: #f6f4ee;
+    color: #1c1917;
   }
 
   input, select, textarea, button {
     font-family: inherit;
   }
+}
+
+/* Authentic Paper Matte Texture in Light Mode */
+html.light .paper-matte-bg {
+  background-color: #f6f4ee;
+  background-image: 
+    radial-gradient(rgba(180, 165, 140, 0.15) 1px, transparent 1px),
+    url("data:image/svg+xml,%3Csvg viewBox='0 0 250 250' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.028'/%3E%3C/svg%3E");
+  background-size: 24px 24px, auto;
+}
+
+html.dark .paper-matte-bg {
+  background-color: #080a0f;
+  background-image: none;
 }
 
 /* Tabular numbers for financial metrics and data tables */
@@ -26,18 +73,29 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* Clean, non-distracting scrollbar */
+/* Clean, non-distracting scrollbar that respects theme */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
-::-webkit-scrollbar-track {
+html.dark ::-webkit-scrollbar-track {
   background: #080a0f;
 }
-::-webkit-scrollbar-thumb {
+html.dark ::-webkit-scrollbar-thumb {
   background: #1e2638;
   border-radius: 3px;
 }
-::-webkit-scrollbar-thumb:hover {
+html.dark ::-webkit-scrollbar-thumb:hover {
   background: #2a354c;
+}
+
+html.light ::-webkit-scrollbar-track {
+  background: #f6f4ee;
+}
+html.light ::-webkit-scrollbar-thumb {
+  background: #d8d2c4;
+  border-radius: 3px;
+}
+html.light ::-webkit-scrollbar-thumb:hover {
+  background: #b8b1a0;
 }
