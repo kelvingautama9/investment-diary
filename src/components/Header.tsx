@@ -111,7 +111,8 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
 
         {/* Zone 2: Navigation Links (Clean Multi-Page Segmented Tab Strip) */}
-        <nav className="flex items-center gap-1 bg-[#efebe2] dark:bg-[#0c0f17] p-0.5 rounded-md border border-[#ded8cb] dark:border-[#1a2233] overflow-x-auto no-scrollbar">
+        {/* Centered on md+ screens with absolute position to ensure zero horizontal shift */}
+        <nav className="hidden md:flex items-center gap-1 bg-[#efebe2] dark:bg-[#0c0f17] p-0.5 rounded-md border border-[#ded8cb] dark:border-[#1a2233] absolute left-1/2 -translate-x-1/2 z-10">
           {navItems.map(item => {
             const Icon = item.icon;
             const isActive = normalizedActivePage === item.id;
@@ -133,8 +134,31 @@ export const Header: React.FC<HeaderProps> = ({
           })}
         </nav>
 
-        {/* Zone 3: Actions (Theme Toggle, Connection, Sync, Sign-in) */}
-        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+        {/* Mobile Navigation for screens < md */}
+        <nav className="flex md:hidden items-center gap-1 bg-[#efebe2] dark:bg-[#0c0f17] p-0.5 rounded-md border border-[#ded8cb] dark:border-[#1a2233] overflow-x-auto no-scrollbar shrink-0">
+          {navItems.map(item => {
+            const Icon = item.icon;
+            const isActive = normalizedActivePage === item.id;
+            return (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => onSelectPage(item.id)}
+                className={`flex items-center gap-1.5 px-2 py-1 rounded text-xs font-medium transition-colors whitespace-nowrap ${
+                  isActive
+                    ? 'bg-[#ffffff] text-[#1c1917] shadow-xs border border-[#ded8cb] dark:border-transparent dark:bg-[#182030] dark:text-white'
+                    : 'text-[#6e685f] hover:text-[#1c1917] dark:text-slate-400 dark:hover:text-slate-200'
+                }`}
+              >
+                <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-blue-600 dark:text-blue-400' : 'text-[#8a8377] dark:text-slate-400'}`} />
+                <span>{item.label}</span>
+              </button>
+            );
+          })}
+        </nav>
+
+        {/* Zone 3: Actions (Theme Toggle, Connection, Sync, Sign-in) - Always locked to right edge with stable elements */}
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 ml-auto z-10">
           {/* Theme Toggle Button */}
           <button
             type="button"
@@ -149,26 +173,26 @@ export const Header: React.FC<HeaderProps> = ({
             )}
           </button>
 
-          {/* Active Syncing State */}
-          {isSyncing ? (
-            <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-[#efebe2] dark:bg-[#111622] border border-[#ded8cb] dark:border-[#1e273a] text-[#44403c] dark:text-slate-300 text-xs">
-              <RefreshCw className="w-3.5 h-3.5 animate-spin text-blue-600 dark:text-blue-400 shrink-0" />
-              <span className="hidden sm:inline font-medium">Sinkronisasi data...</span>
-              <span className="sm:hidden font-medium">Sinkron...</span>
-            </div>
-          ) : sheetConnected ? (
-            /* Connected State: Refresh Button + Connection Details Dropdown */
+          {/* Connected vs Disconnected State - STABLE: NEVER unmount or resize buttons during sync! */}
+          {sheetConnected ? (
             <div className="flex items-center gap-1.5">
+              {/* Manual Sync Button: Remains mounted, spins RefreshCw when syncing */}
               <button
                 type="button"
                 onClick={onManualSync}
-                title="Sinkronkan data dari Google Sheet sekarang"
-                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-[#ded8cb] dark:border-[#232d42] bg-[#ffffff] dark:bg-[#101520] hover:bg-[#f7f5ef] dark:hover:bg-[#161d2c] text-[#44403c] dark:text-slate-300 hover:text-[#1c1917] dark:hover:text-white transition-colors text-xs font-medium shadow-xs"
+                disabled={isSyncing}
+                title={isSyncing ? 'Sedang menyinkronkan data...' : 'Sinkronkan data dari Google Sheet sekarang'}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-[#ded8cb] dark:border-[#232d42] bg-[#ffffff] dark:bg-[#101520] hover:bg-[#f7f5ef] dark:hover:bg-[#161d2c] text-[#44403c] dark:text-slate-300 hover:text-[#1c1917] dark:hover:text-white transition-colors text-xs font-medium shadow-xs disabled:opacity-85 whitespace-nowrap"
               >
-                <RefreshCw className="w-3.5 h-3.5 text-[#8a8377] dark:text-slate-400" />
-                <span className="hidden md:inline">Sinkronkan</span>
+                <RefreshCw
+                  className={`w-3.5 h-3.5 ${
+                    isSyncing ? 'animate-spin text-blue-600 dark:text-blue-400' : 'text-[#8a8377] dark:text-slate-400'
+                  }`}
+                />
+                <span className="hidden md:inline">{isSyncing ? 'Sinkron...' : 'Sinkronkan'}</span>
               </button>
 
+              {/* Connected Details Dropdown Button: Remains mounted with rock-solid width */}
               <div className="relative">
                 <button
                   type="button"
@@ -177,9 +201,13 @@ export const Header: React.FC<HeaderProps> = ({
                     setUserDropdown(false);
                     setConnectPopoverOpen(false);
                   }}
-                  className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-emerald-600/30 bg-emerald-500/10 text-emerald-800 dark:text-emerald-300 text-xs font-medium hover:bg-emerald-500/20 transition-colors"
+                  className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-emerald-600/30 bg-emerald-500/10 text-emerald-800 dark:text-emerald-300 text-xs font-medium hover:bg-emerald-500/20 transition-colors whitespace-nowrap"
                 >
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 dark:bg-emerald-400" />
+                  <span
+                    className={`w-1.5 h-1.5 rounded-full ${
+                      isSyncing ? 'bg-blue-500 animate-pulse' : 'bg-emerald-500 dark:bg-emerald-400'
+                    }`}
+                  />
                   <span className="hidden sm:inline">Google Sheet Terhubung</span>
                   <span className="sm:hidden">Terhubung</span>
                   <ChevronDown className="w-3.5 h-3.5 text-emerald-700 dark:text-emerald-400 ml-0.5" />
@@ -210,7 +238,7 @@ export const Header: React.FC<HeaderProps> = ({
                         disabled={isSyncing}
                         className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:bg-[#f7f5ef] dark:hover:bg-[#182030] text-[#1c1917] dark:text-slate-200 transition-colors text-left"
                       >
-                        <RefreshCw className="w-3.5 h-3.5 text-[#8a8377] dark:text-slate-400" />
+                        <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin text-blue-600' : 'text-[#8a8377] dark:text-slate-400'}`} />
                         <span>Sinkronkan Sekarang</span>
                       </button>
 

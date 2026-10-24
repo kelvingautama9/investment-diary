@@ -55,7 +55,7 @@ export default function App() {
   const [sheetTitle, setSheetTitle] = useState<string>(SHEET_NAME);
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
   const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
-  const [autoSyncInterval, setAutoSyncInterval] = useState<number>(5);
+  const [autoSyncInterval, setAutoSyncInterval] = useState<number>(15);
   const [syncLogs, setSyncLogs] = useState<string[]>([]);
 
   // Performance Date Filter
@@ -425,7 +425,7 @@ export default function App() {
                       Peta Kinerja &amp; Sebaran Aset Portofolio
                     </h1>
                     <p className="text-[11px] text-[#6e685f] dark:text-slate-400 mt-0.5">
-                      Visualisasi matrix heatmap return dan alokasi modal per aset
+                      matrix heatmap return dan alokasi aset
                     </p>
                   </div>
                 </div>

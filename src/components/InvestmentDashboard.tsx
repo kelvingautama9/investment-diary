@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import type { InvestmentRecord, DateFilter, DateFilterPreset, AssetSummary, ActivePage } from '../types';
 import { isNonInvestmentOrExpense } from '../services/googleSheets';
 import { DetailedEquityChart } from './DetailedEquityChart';
@@ -11,6 +11,8 @@ import {
   Plus,
   ArrowRight,
   Layers,
+  Percent,
+  Coins,
 } from 'lucide-react';
 
 interface InvestmentDashboardProps {
@@ -148,18 +150,90 @@ export const InvestmentDashboard: React.FC<InvestmentDashboardProps> = ({
   // Grand Total of floating asset value
   const grandTotalFloatingVal = assetSummaries.reduce((acc, a) => acc + a.valueTotalIdr, 0);
 
-  // Top gainer and loser
-  const topWinner = useMemo(() => {
-    if (assetSummaries.length === 0) return null;
-    const sorted = [...assetSummaries].sort((a, b) => b.pnlPercent - a.pnlPercent);
-    return sorted[0];
-  }, [assetSummaries]);
+  // Highlight ranking filter: 'PERCENT' (% ROI) vs 'NOMINAL' (Rp Value)
+  const [highlightBasis, setHighlightBasis] = useState<'PERCENT' | 'NOMINAL'>('PERCENT');
 
-  const worstLoser = useMemo(() => {
-    if (assetSummaries.length === 0) return null;
-    const sorted = [...assetSummaries].sort((a, b) => a.pnlPercent - b.pnlPercent);
-    return sorted[0];
-  }, [assetSummaries]);
+  // Top Performer and Underperformer with full 3-aspect calculations
+  const { topWinner, worstLoser, totalPortfolioCapital } = useMemo(() => {
+    const valid = filteredRecords.filter(
+      r => !isNonInvestmentOrExpense(r.asset) && !isNonInvestmentOrExpense(r.type)
+    );
+    if (valid.length === 0) {
+      return { topWinner: null, worstLoser: null, totalPortfolioCapital: 0 };
+    }
+
+    const map: Record<
+      string,
+      {
+        asset: string;
+        totalNominal: number;
+        historicalNominal: number;
+        totalLabaBersih: number;
+        totalNilaiAset: number;
+        avgPnlPercent: number;
+        tradeCount: number;
+        floatingCount: number;
+      }
+    > = {};
+
+    let totalCap = 0;
+    valid.forEach(r => {
+      if (!map[r.asset]) {
+        map[r.asset] = {
+          asset: r.asset,
+          totalNominal: 0,
+          historicalNominal: 0,
+          totalLabaBersih: 0,
+          totalNilaiAset: 0,
+          avgPnlPercent: 0,
+          tradeCount: 0,
+          floatingCount: 0,
+        };
+      }
+      const nom = r.nominalIdr || (r.entryPrice * r.jumlah) || 0;
+      map[r.asset].historicalNominal += nom;
+      map[r.asset].totalLabaBersih += r.labaBersih || 0;
+      map[r.asset].totalNilaiAset += r.nilaiAset || 0;
+      map[r.asset].tradeCount += 1;
+      if (r.status === 'Floating') {
+        map[r.asset].floatingCount += 1;
+        map[r.asset].totalNominal += nom;
+        totalCap += nom;
+      }
+    });
+
+    const list = Object.values(map).map(item => {
+      const baseCost = item.totalNominal > 0 ? item.totalNominal : item.historicalNominal;
+      return {
+        ...item,
+        avgPnlPercent: baseCost > 0 ? (item.totalLabaBersih / baseCost) * 100 : 0,
+        capitalShare: totalCap > 0 && item.totalNominal > 0 ? (item.totalNominal / totalCap) * 100 : 0,
+      };
+    });
+
+    if (list.length === 0) {
+      return { topWinner: null, worstLoser: null, totalPortfolioCapital: 0 };
+    }
+
+    let winner = list[0];
+    let loser = list[0];
+
+    if (highlightBasis === 'PERCENT') {
+      const sortedByRoi = [...list].sort((a, b) => b.avgPnlPercent - a.avgPnlPercent);
+      winner = sortedByRoi[0];
+      loser = sortedByRoi[sortedByRoi.length - 1];
+    } else {
+      const sortedByNominal = [...list].sort((a, b) => b.totalLabaBersih - a.totalLabaBersih);
+      winner = sortedByNominal[0];
+      loser = sortedByNominal[sortedByNominal.length - 1];
+    }
+
+    return {
+      topWinner: winner,
+      worstLoser: loser,
+      totalPortfolioCapital: totalCap,
+    };
+  }, [filteredRecords, highlightBasis]);
 
   const presets: Array<{ id: DateFilterPreset; label: string }> = [
     { id: 'ALL', label: 'Semua' },
@@ -234,58 +308,216 @@ export const InvestmentDashboard: React.FC<InvestmentDashboardProps> = ({
           {/* Detailed Equity Chart */}
           <DetailedEquityChart records={filteredRecords} />
 
-          {/* Quick Highlights Row */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
-            {topWinner && (
-              <div className="p-2.5 rounded-lg bg-[#ffffff] dark:bg-[#0c0f17] border border-emerald-600/30 dark:border-emerald-500/25 flex items-center justify-between shadow-2xs">
-                <div>
-                  <span className="text-[10px] uppercase tracking-wider text-[#6e685f] dark:text-slate-400 font-medium block">
-                    Top Performer
-                  </span>
-                  <span className="text-[#1c1917] dark:text-white font-semibold text-xs flex items-center gap-1.5 mt-0.5">
-                    {topWinner.asset}
-                    <span className="font-mono text-emerald-700 dark:text-emerald-400 text-[11px]">
-                      +{topWinner.pnlPercent.toFixed(1)}%
-                    </span>
-                  </span>
-                </div>
-                <span className="text-[11px] font-mono font-medium text-emerald-800 dark:text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20 tabular-nums">
-                  Rp {Math.round(topWinner.valueTotalIdr / 1000000)} Jt
-                </span>
-              </div>
-            )}
-
-            {worstLoser && (
-              <div className="p-2.5 rounded-lg bg-[#ffffff] dark:bg-[#0c0f17] border border-rose-600/30 dark:border-rose-500/25 flex items-center justify-between shadow-2xs">
-                <div>
-                  <span className="text-[10px] uppercase tracking-wider text-[#6e685f] dark:text-slate-400 font-medium block">
-                    Underperformer
-                  </span>
-                  <span className="text-[#1c1917] dark:text-white font-semibold text-xs flex items-center gap-1.5 mt-0.5">
-                    {worstLoser.asset}
-                    <span className="font-mono text-rose-700 dark:text-rose-400 text-[11px]">
-                      {worstLoser.pnlPercent.toFixed(1)}%
-                    </span>
-                  </span>
-                </div>
-                <span className="text-[11px] font-mono font-medium text-rose-800 dark:text-rose-400 bg-rose-500/10 px-1.5 py-0.5 rounded border border-rose-500/20 tabular-nums">
-                  Rp {Math.round(worstLoser.valueTotalIdr / 1000000)} Jt
-                </span>
-              </div>
-            )}
-
-            <div className="p-2.5 rounded-lg bg-[#ffffff] dark:bg-[#0c0f17] border border-[#e5e0d5] dark:border-[#1e2638] flex items-center justify-between shadow-2xs">
-              <div>
-                <span className="text-[10px] uppercase tracking-wider text-[#6e685f] dark:text-slate-400 font-medium block">
-                  Aktivitas Transaksi
-                </span>
-                <span className="text-[#1c1917] dark:text-slate-200 font-semibold text-xs block mt-0.5 font-mono">
-                  {filteredRecords.length} posisi tercatat
-                </span>
-              </div>
-              <span className="text-[11px] font-mono text-[#6e685f] dark:text-slate-400">
-                {metrics.floatingCount} aktif
+          {/* Quick Highlights Row with Basis Filter Buttons & 3 Aspects */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between text-xs px-0.5">
+              <span className="text-[10px] uppercase font-bold tracking-wider text-[#6e685f] dark:text-slate-400">
+                Sorotan Performa Portofolio
               </span>
+
+              {/* Small Filtering Buttons to toggle between % ROI and Rp Nominal Value */}
+              <div className="flex items-center gap-1">
+                <span className="text-[10px] text-[#8a8377] dark:text-slate-500 font-medium mr-1 hidden sm:inline">
+                  Filter Sorotan:
+                </span>
+                <div className="flex items-center bg-[#efebe2] dark:bg-[#0c0f17] p-0.5 rounded-md border border-[#ded8cb] dark:border-[#1e2638]">
+                  <button
+                    type="button"
+                    onClick={() => setHighlightBasis('PERCENT')}
+                    className={`flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold transition-all ${
+                      highlightBasis === 'PERCENT'
+                        ? 'bg-[#ffffff] text-blue-700 dark:text-blue-400 shadow-xs border border-[#ded8cb] dark:border-transparent dark:bg-[#1a2233]'
+                        : 'text-[#6e685f] hover:text-[#1c1917] dark:text-slate-400 dark:hover:text-slate-200'
+                    }`}
+                    title="Filter sorotan berdasarkan persentase ROI"
+                  >
+                    <Percent className="w-2.5 h-2.5" />
+                    <span>% ROI</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setHighlightBasis('NOMINAL')}
+                    className={`flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold transition-all ${
+                      highlightBasis === 'NOMINAL'
+                        ? 'bg-[#ffffff] text-blue-700 dark:text-blue-400 shadow-xs border border-[#ded8cb] dark:border-transparent dark:bg-[#1a2233]'
+                        : 'text-[#6e685f] hover:text-[#1c1917] dark:text-slate-400 dark:hover:text-slate-200'
+                    }`}
+                    title="Filter sorotan berdasarkan nominal keuntungan/kerugian (Rp)"
+                  >
+                    <Coins className="w-2.5 h-2.5" />
+                    <span>Nominal Rp</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
+              {/* Top Performer Card */}
+              {topWinner && (
+                <div
+                  onClick={() => onSelectAssetForChart && onSelectAssetForChart(topWinner.asset)}
+                  className="p-3 rounded-xl bg-[#ffffff] dark:bg-[#0c0f17] border-2 border-emerald-500/40 dark:border-emerald-500/30 flex flex-col justify-between shadow-2xs cursor-pointer hover:border-emerald-500 transition-colors"
+                  title={`Klik untuk memfokuskan grafik pada ${topWinner.asset}`}
+                >
+                  <div>
+                    <div className="flex items-center justify-between pb-1.5 border-b border-emerald-500/15">
+                      <span className="text-[10px] uppercase tracking-wider text-emerald-800 dark:text-emerald-400 font-bold flex items-center gap-1">
+                        <TrendingUp className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
+                        <span>Top Performer</span>
+                      </span>
+                      <span className="text-[9px] font-mono font-medium px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-800 dark:text-emerald-400 border border-emerald-500/20">
+                        {highlightBasis === 'PERCENT' ? '% ROI' : 'Nominal Rp'}
+                      </span>
+                    </div>
+
+                    <div className="mt-2 flex items-baseline justify-between">
+                      <span className="font-bold text-sm text-[#1c1917] dark:text-white font-mono tracking-tight">
+                        {topWinner.asset}
+                      </span>
+                      {/* Aspek 1: % ROI */}
+                      <span className="font-mono font-bold text-emerald-700 dark:text-emerald-400 text-xs tabular-nums">
+                        +{topWinner.avgPnlPercent.toFixed(2)}% ROI
+                      </span>
+                    </div>
+
+                    {/* Aspek 2: Nominal Laba Bersih */}
+                    <div className="mt-1 flex items-center justify-between text-[11px]">
+                      <span className="text-[#6e685f] dark:text-slate-400 text-[10px]">Laba Bersih:</span>
+                      <span className="font-mono font-bold text-emerald-700 dark:text-emerald-400 tabular-nums">
+                        +Rp {Math.round(topWinner.totalLabaBersih).toLocaleString('id-ID')}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Aspek 3: Porsi Modal Portofolio */}
+                  <div className="pt-2 mt-2 border-t border-[#ede8dc] dark:border-[#1a2233] space-y-1">
+                    <div className="flex items-center justify-between text-[10px]">
+                      <span className="text-[#6e685f] dark:text-slate-400">Porsi Modal Aktif:</span>
+                      <span className="font-mono font-semibold text-[#1c1917] dark:text-white tabular-nums">
+                        {topWinner.capitalShare.toFixed(1)}% ({topWinner.totalNominal > 0 ? `Rp ${Math.round(topWinner.totalNominal / 1000000)} Jt` : '0 Jt / Realized'})
+                      </span>
+                    </div>
+                    <div className="w-full bg-[#e8e3d8] dark:bg-[#1a2233] h-1 rounded-full overflow-hidden">
+                      <div
+                        className="bg-emerald-600 dark:bg-emerald-500 h-full rounded-full transition-all"
+                        style={{ width: `${Math.min(100, topWinner.capitalShare)}%` }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Underperformer Card */}
+              {worstLoser && (
+                <div
+                  onClick={() => onSelectAssetForChart && onSelectAssetForChart(worstLoser.asset)}
+                  className="p-3 rounded-xl bg-[#ffffff] dark:bg-[#0c0f17] border-2 border-rose-500/40 dark:border-rose-500/30 flex flex-col justify-between shadow-2xs cursor-pointer hover:border-rose-500 transition-colors"
+                  title={`Klik untuk memfokuskan grafik pada ${worstLoser.asset}`}
+                >
+                  <div>
+                    <div className="flex items-center justify-between pb-1.5 border-b border-rose-500/15">
+                      <span className="text-[10px] uppercase tracking-wider text-rose-800 dark:text-rose-400 font-bold flex items-center gap-1">
+                        <TrendingDown className="w-3 h-3 text-rose-600 dark:text-rose-400" />
+                        <span>Underperformer</span>
+                      </span>
+                      <span className="text-[9px] font-mono font-medium px-1.5 py-0.5 rounded bg-rose-500/10 text-rose-800 dark:text-rose-400 border border-rose-500/20">
+                        {highlightBasis === 'PERCENT' ? '% ROI' : 'Nominal Rp'}
+                      </span>
+                    </div>
+
+                    <div className="mt-2 flex items-baseline justify-between">
+                      <span className="font-bold text-sm text-[#1c1917] dark:text-white font-mono tracking-tight">
+                        {worstLoser.asset}
+                      </span>
+                      {/* Aspek 1: % ROI */}
+                      <span
+                        className={`font-mono font-bold text-xs tabular-nums ${
+                          worstLoser.avgPnlPercent >= 0
+                            ? 'text-emerald-700 dark:text-emerald-400'
+                            : 'text-rose-700 dark:text-rose-400'
+                        }`}
+                      >
+                        {worstLoser.avgPnlPercent >= 0 ? '+' : ''}
+                        {worstLoser.avgPnlPercent.toFixed(2)}% ROI
+                      </span>
+                    </div>
+
+                    {/* Aspek 2: Nominal Laba/Rugi */}
+                    <div className="mt-1 flex items-center justify-between text-[11px]">
+                      <span className="text-[#6e685f] dark:text-slate-400 text-[10px]">Laba/Rugi:</span>
+                      <span
+                        className={`font-mono font-bold tabular-nums ${
+                          worstLoser.totalLabaBersih >= 0
+                            ? 'text-emerald-700 dark:text-emerald-400'
+                            : 'text-rose-700 dark:text-rose-400'
+                        }`}
+                      >
+                        {worstLoser.totalLabaBersih >= 0 ? '+' : ''}Rp{' '}
+                        {Math.round(worstLoser.totalLabaBersih).toLocaleString('id-ID')}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Aspek 3: Porsi Modal Portofolio */}
+                  <div className="pt-2 mt-2 border-t border-[#ede8dc] dark:border-[#1a2233] space-y-1">
+                    <div className="flex items-center justify-between text-[10px]">
+                      <span className="text-[#6e685f] dark:text-slate-400">Porsi Modal Aktif:</span>
+                      <span className="font-mono font-semibold text-[#1c1917] dark:text-white tabular-nums">
+                        {worstLoser.capitalShare.toFixed(1)}% ({worstLoser.totalNominal > 0 ? `Rp ${Math.round(worstLoser.totalNominal / 1000000)} Jt` : '0 Jt / Realized'})
+                      </span>
+                    </div>
+                    <div className="w-full bg-[#e8e3d8] dark:bg-[#1a2233] h-1 rounded-full overflow-hidden">
+                      <div
+                        className="bg-rose-600 dark:bg-rose-500 h-full rounded-full transition-all"
+                        style={{ width: `${Math.min(100, worstLoser.capitalShare)}%` }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Activity & Health Card */}
+              <div className="p-3 rounded-xl bg-[#ffffff] dark:bg-[#0c0f17] border border-[#e5e0d5] dark:border-[#1e2638] flex flex-col justify-between shadow-2xs">
+                <div>
+                  <div className="flex items-center justify-between pb-1.5 border-b border-[#ede8dc] dark:border-[#1a2233]">
+                    <span className="text-[10px] uppercase tracking-wider text-[#6e685f] dark:text-slate-400 font-bold">
+                      Aktivitas Transaksi
+                    </span>
+                    <span className="text-[9px] font-mono text-[#8a8377] dark:text-slate-500">
+                      {dateFilter.preset}
+                    </span>
+                  </div>
+
+                  <div className="mt-2 space-y-1 text-xs">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] text-[#6e685f] dark:text-slate-400">Total Transaksi:</span>
+                      <span className="font-mono font-semibold text-[#1c1917] dark:text-white">
+                        {filteredRecords.length} posisi
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] text-[#6e685f] dark:text-slate-400">Posisi Aktif (Floating):</span>
+                      <span className="font-mono font-medium text-blue-600 dark:text-blue-400">
+                        {metrics.floatingCount} aset
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] text-[#6e685f] dark:text-slate-400">Posisi Selesai:</span>
+                      <span className="font-mono font-medium text-[#1c1917] dark:text-slate-300">
+                        {metrics.closedCount} realized
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-2 mt-2 border-t border-[#ede8dc] dark:border-[#1a2233] flex items-center justify-between text-[10px]">
+                  <span className="text-[#6e685f] dark:text-slate-400">Win Rate:</span>
+                  <span className="font-mono font-bold text-emerald-700 dark:text-emerald-400">
+                    {metrics.winRate.toFixed(0)}% Menang
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
 

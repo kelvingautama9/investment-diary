@@ -314,16 +314,16 @@ export const DetailedEquityChart: React.FC<DetailedEquityChartProps> = ({ record
     <div className="w-full select-none rounded-xl bg-[#ffffff] dark:bg-[#0c0f17] border border-[#e5e0d5] dark:border-[#1e2638] p-3.5 sm:p-4 shadow-2xs">
       <div className="flex flex-col gap-3">
         {/* Header Balance Banner with Mode Toggle */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-          <div>
-            <div className="flex items-center gap-2 text-xs text-[#6e685f] dark:text-slate-400">
-              <span className="font-medium text-[#44403c] dark:text-slate-300">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-1.5 text-xs text-[#6e685f] dark:text-slate-400">
+              <span className="font-semibold text-[#1c1917] dark:text-slate-200 truncate">
                 {chartType === 'line'
-                  ? 'Akumulasi Pertumbuhan Laba Bersih (Realized + Floating)'
+                  ? 'Kurva Akumulasi Laba (Realized + Floating)'
                   : 'Distribusi Laba / Rugi Per Transaksi'}
               </span>
-              <span className="text-[#b8b0a2] dark:text-slate-600">·</span>
-              <span className="text-[#6e685f] dark:text-slate-400">Database Sheet</span>
+              <span className="text-[#b8b0a2] dark:text-slate-600 shrink-0">·</span>
+              <span className="text-[#6e685f] dark:text-slate-400 shrink-0 whitespace-nowrap">Database Sheet</span>
             </div>
             <div className="flex flex-wrap items-baseline gap-2 mt-1">
               <span
@@ -344,33 +344,33 @@ export const DetailedEquityChart: React.FC<DetailedEquityChartProps> = ({ record
             </div>
           </div>
 
-          {/* Segmented Control: Line vs Bar */}
-          <div className="flex items-center self-start sm:self-center bg-[#efebe2] dark:bg-[#090b10] p-1 rounded-lg border border-[#ded8cb] dark:border-[#1a2233]">
+          {/* Segmented Control: Line vs Bar - Fixed height, shrink-0, whitespace-nowrap */}
+          <div className="flex items-center shrink-0 self-start sm:self-center bg-[#efebe2] dark:bg-[#090b10] p-1 rounded-lg border border-[#ded8cb] dark:border-[#1a2233] h-9">
             <button
               type="button"
               onClick={() => setChartType('line')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+              className={`flex items-center justify-center gap-1.5 px-3 h-7 text-xs font-semibold rounded-md transition-all whitespace-nowrap shrink-0 ${
                 chartType === 'line'
                   ? 'bg-[#ffffff] text-[#1c1917] shadow-xs border border-[#ded8cb] dark:border-transparent dark:bg-[#182030] dark:text-white'
                   : 'text-[#6e685f] hover:text-[#1c1917] dark:text-slate-400 dark:hover:text-slate-200'
               }`}
               title="Tampilkan Kurva Pertumbuhan Akumulasi"
             >
-              <LineIcon className="w-3.5 h-3.5" />
-              <span>Kurva Akumulasi</span>
+              <LineIcon className="w-3.5 h-3.5 shrink-0" />
+              <span className="whitespace-nowrap">Kurva Akumulasi</span>
             </button>
             <button
               type="button"
               onClick={() => setChartType('bar')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+              className={`flex items-center justify-center gap-1.5 px-3 h-7 text-xs font-semibold rounded-md transition-all whitespace-nowrap shrink-0 ${
                 chartType === 'bar'
                   ? 'bg-[#ffffff] text-[#1c1917] shadow-xs border border-[#ded8cb] dark:border-transparent dark:bg-[#182030] dark:text-white'
                   : 'text-[#6e685f] hover:text-[#1c1917] dark:text-slate-400 dark:hover:text-slate-200'
               }`}
               title="Tampilkan Diagram Batang Laba/Rugi Tiap Transaksi"
             >
-              <BarChart2 className="w-3.5 h-3.5" />
-              <span>Hasil Transaksi</span>
+              <BarChart2 className="w-3.5 h-3.5 shrink-0" />
+              <span className="whitespace-nowrap">Hasil Transaksi</span>
             </button>
           </div>
         </div>
