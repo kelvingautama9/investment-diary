@@ -4,7 +4,6 @@ import React, { useState, useMemo } from 'react';
 import type { InvestmentRecord } from '../types';
 import { isNonInvestmentOrExpense } from '../services/googleSheets';
 import {
-  LayoutGrid,
   ChevronDown,
   ChevronUp,
   Minimize2,

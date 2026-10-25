@@ -422,11 +422,8 @@ export default function App() {
                 <div className="flex items-center justify-between pb-2 border-b border-[#e5e0d5] dark:border-[#1a2233]">
                   <div>
                     <h1 className="text-sm font-semibold text-[#1c1917] dark:text-white tracking-tight">
-                      Peta Kinerja &amp; Sebaran Aset Portofolio
-                    </h1>
-                    <p className="text-[11px] text-[#6e685f] dark:text-slate-400 mt-0.5">
                       matrix heatmap return dan alokasi aset
-                    </p>
+                    </h1>
                   </div>
                 </div>
 
