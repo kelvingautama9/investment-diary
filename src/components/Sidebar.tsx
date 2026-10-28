@@ -14,6 +14,10 @@ import {
   Layers,
   Clock,
   CheckCircle2,
+  Calculator,
+  Coins,
+  AlertTriangle,
+  X,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -29,12 +33,16 @@ interface SidebarProps {
   sheetTitle: string;
   isSyncing: boolean;
   onManualSync: () => void;
+  onOpenRiskCalculator?: () => void;
+  onOpenDividends?: () => void;
+  onOpenSanitizer?: () => void;
+  anomalyCount?: number;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
   records,
   isCollapsed,
-  onToggleCollapse: _onToggleCollapse,
+  onToggleCollapse,
   selectedAsset,
   onSelectAsset,
   onOpenAddModal,
@@ -44,6 +52,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
   sheetTitle,
   isSyncing,
   onManualSync,
+  onOpenRiskCalculator,
+  onOpenDividends,
+  onOpenSanitizer,
+  anomalyCount = 0,
 }) => {
   const [sidebarTab, setSidebarTab] = useState<'assets' | 'history'>('assets');
   const [searchTerm, setSearchTerm] = useState('');
@@ -173,15 +185,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   return (
     <aside
-      className={`h-[calc(100vh-3.25rem)] sticky top-13 bg-[#fbf9f4] dark:bg-[#0c0f17] shrink-0 transition-[width,border-color] duration-300 ease-in-out overflow-hidden z-30 select-none ${
-        isCollapsed ? 'w-0 border-r-0' : 'w-72 border-r border-[#e5e0d5] dark:border-[#1e2638]'
+      className={`fixed inset-y-0 left-0 z-50 w-72 bg-[#fbf9f4] dark:bg-[#0c0f17] border-r border-[#e5e0d5] dark:border-[#1e2638] shadow-2xl transition-transform duration-300 ease-in-out md:static md:inset-auto md:z-30 md:shadow-none md:transition-[width] select-none h-full md:h-[calc(100vh-3rem)] ${
+        isCollapsed
+          ? '-translate-x-full md:translate-x-0 md:w-0 md:border-r-0 overflow-hidden'
+          : 'translate-x-0 md:w-72 overflow-hidden'
       }`}
       aria-hidden={isCollapsed}
     >
       <div className="w-72 h-full flex flex-col">
-        {/* 1. Header Toolbar: Tabs */}
+        {/* 1. Header Toolbar: Tabs with Mobile Close Button */}
         <div className="p-2.5 border-b border-[#e5e0d5] dark:border-[#1a2233] flex items-center justify-between gap-1.5 bg-[#f5f2ea] dark:bg-[#090c12]">
-          <div className="flex items-center gap-1 bg-[#efebe2] dark:bg-[#121724] p-0.5 rounded-md border border-[#ded8cb] dark:border-[#1e2638] w-full">
+          <div className="flex items-center gap-1 bg-[#efebe2] dark:bg-[#121724] p-0.5 rounded-md border border-[#ded8cb] dark:border-[#1e2638] flex-1">
             <button
               type="button"
               onClick={() => setSidebarTab('assets')}
@@ -205,6 +219,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
               Riwayat
             </button>
           </div>
+
+          {onToggleCollapse && (
+            <button
+              type="button"
+              onClick={onToggleCollapse}
+              className="md:hidden p-1.5 rounded-md text-[#6e685f] hover:text-[#1c1917] dark:text-slate-400 dark:hover:text-white shrink-0 hover:bg-[#efebe2] dark:hover:bg-[#161d2d] transition-colors"
+              title="Tutup Menu Sidebar"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
         </div>
 
         {/* 2. Primary Action Button */}
@@ -412,6 +437,50 @@ export const Sidebar: React.FC<SidebarProps> = ({
             )
           )}
         </div>
+
+        {/* Quick Tools & Shortcuts in Sidebar (Alat Analisis Portofolio) */}
+        {(onOpenRiskCalculator || onOpenDividends || onOpenSanitizer) && (
+          <div className="p-2 border-t border-[#e5e0d5] dark:border-[#1a2233] bg-[#faf8f4] dark:bg-[#090c12] space-y-1.5 shrink-0">
+            <span className="text-[10px] uppercase font-bold text-[#8a8377] dark:text-slate-500 tracking-wider px-0.5 block">
+              Peralatan Portofolio
+            </span>
+            <div className="grid grid-cols-2 gap-1.5">
+              {onOpenRiskCalculator && (
+                <button
+                  type="button"
+                  onClick={onOpenRiskCalculator}
+                  className="flex items-center gap-1.5 px-2 py-1.5 rounded-md bg-white dark:bg-[#161d2d] border border-[#ded8cb] dark:border-[#222c42] text-[11px] font-medium text-[#44403c] dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors shadow-2xs"
+                >
+                  <Calculator className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
+                  <span className="truncate">Kalkulator</span>
+                </button>
+              )}
+              {onOpenDividends && (
+                <button
+                  type="button"
+                  onClick={onOpenDividends}
+                  className="flex items-center gap-1.5 px-2 py-1.5 rounded-md bg-white dark:bg-[#161d2d] border border-[#ded8cb] dark:border-[#222c42] text-[11px] font-medium text-[#44403c] dark:text-slate-300 hover:text-amber-600 dark:hover:text-amber-400 transition-colors shadow-2xs"
+                >
+                  <Coins className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
+                  <span className="truncate">Dividen</span>
+                </button>
+              )}
+            </div>
+            {anomalyCount !== undefined && anomalyCount > 0 && onOpenSanitizer && (
+              <button
+                type="button"
+                onClick={onOpenSanitizer}
+                className="w-full flex items-center justify-between px-2 py-1 rounded-md bg-amber-500/10 border border-amber-500/25 text-[11px] font-medium text-amber-800 dark:text-amber-300 hover:bg-amber-500/20 transition-colors"
+              >
+                <span className="flex items-center gap-1.5 truncate">
+                  <AlertTriangle className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
+                  <span className="truncate">Periksa Anomali Data</span>
+                </span>
+                <span className="font-mono font-bold text-[10px] bg-amber-500/20 px-1 rounded">{anomalyCount}</span>
+              </button>
+            )}
+          </div>
+        )}
 
         {/* 6. Bottom System Status Bar */}
         <div className="p-2.5 border-t border-[#e5e0d5] dark:border-[#1a2233] bg-[#f5f2ea] dark:bg-[#090c12] flex items-center justify-between text-[11px] text-[#57534e] dark:text-slate-400">

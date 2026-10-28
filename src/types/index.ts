@@ -2,6 +2,9 @@ export type TradeType = 'BUY' | 'SELL';
 export type TradeStatus = 'Realized' | 'Floating';
 export type AssetClass = 'CRYPTO' | 'STOCK' | 'FOREX' | 'COMMODITY' | 'INDEX';
 
+export type EmotionType = 'Disiplin' | 'FOMO' | 'Revenge' | 'Ragu' | 'Serakah' | 'Panik';
+export type StrategyType = 'Breakout' | 'Pullback' | 'Support Bounce' | 'Reversal' | 'Dividen' | 'Momentum' | 'Lainnya';
+
 export interface InvestmentRecord {
   id: string; // e.g. ROW-2
   rowNumber?: number; // Sheet row index (2, 3, etc.)
@@ -19,6 +22,11 @@ export interface InvestmentRecord {
   labaBersih: number; // Column L: Laba Bersih in IDR (e.g. 431425)
   status: TradeStatus; // Column M: Notes (Realized / Floating)
   nilaiAset: number; // Column N: Nilai Aset in IDR
+  subAccount?: string; // Multi-portfolio tag (e.g. 'Utama', 'Swing', 'Scalping', 'Dividen')
+  strategy?: StrategyType | string; // Qualitative setup
+  emotion?: EmotionType | string; // Execution mindset / emotion
+  rating?: number; // Execution discipline score (1-5)
+  notes?: string; // Evaluation & lesson learned
 }
 
 export interface AssetSummary {
@@ -198,4 +206,60 @@ export interface MarketTicker {
   low24h: number;
   volume24h: string;
   category: AssetClass;
+}
+
+export interface DividendRecord {
+  id: string;
+  asset: string;
+  date: string;
+  nominalIdr: number;
+  yieldPercent?: number;
+  sharesOwned?: number;
+  dividendPerShare?: number;
+  notes?: string;
+  subAccount?: string;
+}
+
+export type AnomalyType =
+  | 'INVALID_DATES'
+  | 'MISSING_EXIT_PRICE'
+  | 'UNREALIZED_WITH_EXIT'
+  | 'EXTREME_PNL'
+  | 'ZERO_NOMINAL'
+  | 'ZERO_QTY';
+
+export interface DataAnomaly {
+  recordId: string;
+  rowNumber?: number;
+  asset: string;
+  issueType: AnomalyType;
+  severity: 'warning' | 'error';
+  title: string;
+  description: string;
+  suggestedFix: string;
+}
+
+export interface RiskCalculationInput {
+  totalCapital: number;
+  riskPercent: number; // e.g. 1% or 2%
+  asset: string;
+  currency: 'IDR' | 'USD';
+  kursIdrUsd: number;
+  entryPrice: number;
+  stopLossPrice: number;
+  takeProfitPrice: number;
+}
+
+export interface RiskCalculationResult {
+  maxRiskAmountIdr: number;
+  slDistancePercent: number;
+  slDistancePrice: number;
+  tpDistancePercent: number;
+  tpDistancePrice: number;
+  riskRewardRatio: number; // e.g. 2.5 (1:2.5)
+  recommendedLots: number; // Lembar / lot / koin
+  recommendedUnits: number;
+  allocatedCapitalIdr: number;
+  potentialProfitIdr: number;
+  isAcceptableRR: boolean;
 }

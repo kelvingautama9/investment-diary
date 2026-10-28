@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import type { InvestmentRecord, DateFilter, DateFilterPreset, AssetSummary, ActivePage } from '../types';
 import { isNonInvestmentOrExpense } from '../services/googleSheets';
 import { DetailedEquityChart } from './DetailedEquityChart';
+import { usePrivacy } from '../context/PrivacyContext';
 import {
   Calendar,
   ArrowUpRight,
@@ -13,6 +14,12 @@ import {
   Layers,
   Percent,
   Coins,
+  Calculator,
+  Brain,
+  Star,
+  CheckCircle2,
+  Clock,
+  Sparkles,
 } from 'lucide-react';
 
 interface InvestmentDashboardProps {
@@ -22,6 +29,8 @@ interface InvestmentDashboardProps {
   onSelectAssetForChart?: (symbol: string) => void;
   onOpenAddModal?: () => void;
   onNavigateToTab?: (page: ActivePage) => void;
+  onOpenRiskCalculator?: () => void;
+  onOpenDividends?: () => void;
 }
 
 export const InvestmentDashboard: React.FC<InvestmentDashboardProps> = ({
@@ -31,14 +40,42 @@ export const InvestmentDashboard: React.FC<InvestmentDashboardProps> = ({
   onSelectAssetForChart,
   onOpenAddModal,
   onNavigateToTab,
+  onOpenRiskCalculator,
+  onOpenDividends,
 }) => {
-  // Apply date filter & strict non-investment filter (removes any transport/expense items)
+  const { formatPrivacyIdr, formatPrivacyUsd, isPrivacyMode } = usePrivacy();
+
+  // Sub-Account / Multi-Portfolio filter
+  const [subAccountFilter, setSubAccountFilter] = useState<string>('ALL');
+
+  // Highlight basis state: 'PERCENT' vs 'NOMINAL'
+  const [highlightBasis, setHighlightBasis] = useState<'PERCENT' | 'NOMINAL'>('PERCENT');
+
+  // Extract available sub-accounts
+  const availableSubAccounts = useMemo(() => {
+    const set = new Set<string>();
+    records.forEach(r => {
+      if (r.subAccount && r.subAccount.trim()) {
+        set.add(r.subAccount.trim());
+      }
+    });
+    return Array.from(set);
+  }, [records]);
+
+  // Apply date filter, sub-account filter & strict non-investment filter
   const filteredRecords = useMemo(() => {
     if (records.length === 0) return [];
     const now = new Date();
 
     return records.filter(rec => {
       if (isNonInvestmentOrExpense(rec.asset) || isNonInvestmentOrExpense(rec.type)) return false;
+
+      // Sub-account filter
+      if (subAccountFilter !== 'ALL') {
+        const acc = rec.subAccount ? rec.subAccount.trim() : 'Utama';
+        if (acc !== subAccountFilter) return false;
+      }
+
       if (!rec.entryDate) return true;
       const recDate = new Date(rec.entryDate);
 
@@ -65,7 +102,7 @@ export const InvestmentDashboard: React.FC<InvestmentDashboardProps> = ({
       const diffDays = diffTime / (1000 * 3600 * 24);
       return diffDays <= days;
     });
-  }, [records, dateFilter]);
+  }, [records, dateFilter, subAccountFilter]);
 
   // Aggregate Metrics
   const metrics = useMemo(() => {
@@ -109,11 +146,60 @@ export const InvestmentDashboard: React.FC<InvestmentDashboardProps> = ({
     };
   }, [filteredRecords]);
 
-  // Group by Asset Summary (Columns P:S in user spreadsheet)
+  // Psychological Audit Metrics
+  const psychologyAudit = useMemo(() => {
+    let disciplineWins = 0;
+    let disciplineTotal = 0;
+    let emotionWins = 0;
+    let emotionTotal = 0;
+    let totalRating = 0;
+    let ratedCount = 0;
+    const strategyPnl: Record<string, { count: number; totalPnl: number }> = {};
+
+    filteredRecords.forEach(r => {
+      const isWin = (r.labaBersih || 0) > 0;
+      if (r.rating) {
+        totalRating += r.rating;
+        ratedCount++;
+      }
+      if (r.emotion === 'Disiplin') {
+        disciplineTotal++;
+        if (isWin) disciplineWins++;
+      } else if (r.emotion && ['FOMO', 'Revenge', 'Serakah', 'Panik'].includes(r.emotion)) {
+        emotionTotal++;
+        if (isWin) emotionWins++;
+      }
+
+      if (r.strategy) {
+        if (!strategyPnl[r.strategy]) {
+          strategyPnl[r.strategy] = { count: 0, totalPnl: 0 };
+        }
+        strategyPnl[r.strategy].count++;
+        strategyPnl[r.strategy].totalPnl += r.labaBersih || 0;
+      }
+    });
+
+    const disciplineWinRate = disciplineTotal > 0 ? (disciplineWins / disciplineTotal) * 100 : 0;
+    const emotionWinRate = emotionTotal > 0 ? (emotionWins / emotionTotal) * 100 : 0;
+    const avgRating = ratedCount > 0 ? totalRating / ratedCount : 4.8;
+
+    // Best strategy
+    const sortedStrategies = Object.entries(strategyPnl).sort((a, b) => b[1].totalPnl - a[1].totalPnl);
+    const bestStrategy = sortedStrategies.length > 0 ? sortedStrategies[0] : null;
+
+    return {
+      disciplineWinRate,
+      disciplineTotal,
+      emotionWinRate,
+      emotionTotal,
+      avgRating,
+      bestStrategy,
+    };
+  }, [filteredRecords]);
+
+  // Group by Asset Summary
   const assetSummaries: AssetSummary[] = useMemo(() => {
-    const floatingRecords = records.filter(
-      r => r.status === 'Floating' && !isNonInvestmentOrExpense(r.asset) && !isNonInvestmentOrExpense(r.type)
-    );
+    const floatingRecords = filteredRecords.filter(r => r.status === 'Floating');
     const assetMap: Record<
       string,
       { totalBuyCost: number; totalQty: number; currentPrice: number; totalValIdr: number }
@@ -139,29 +225,21 @@ export const InvestmentDashboard: React.FC<InvestmentDashboardProps> = ({
 
       return {
         asset,
-        averageBuy: Number(avgBuy.toFixed(1)),
-        priceNow: Number(priceNow.toFixed(1)),
-        pnlPercent: Number(pnlPct.toFixed(2)),
-        valueTotalIdr: Math.round(data.totalValIdr),
+        averageBuy: avgBuy,
+        priceNow,
+        pnlPercent: pnlPct,
+        valueTotalIdr: data.totalValIdr,
       };
-    }).sort((a, b) => b.valueTotalIdr - a.valueTotalIdr);
-  }, [records]);
+    });
+  }, [filteredRecords]);
 
-  // Grand Total of floating asset value
-  const grandTotalFloatingVal = assetSummaries.reduce((acc, a) => acc + a.valueTotalIdr, 0);
+  // Total Floating Value
+  const grandTotalFloatingVal = useMemo(() => {
+    return assetSummaries.reduce((sum, a) => sum + a.valueTotalIdr, 0);
+  }, [assetSummaries]);
 
-  // Highlight ranking filter: 'PERCENT' (% ROI) vs 'NOMINAL' (Rp Value)
-  const [highlightBasis, setHighlightBasis] = useState<'PERCENT' | 'NOMINAL'>('PERCENT');
-
-  // Top Performer and Underperformer with full 3-aspect calculations
-  const { topWinner, worstLoser, totalPortfolioCapital } = useMemo(() => {
-    const valid = filteredRecords.filter(
-      r => !isNonInvestmentOrExpense(r.asset) && !isNonInvestmentOrExpense(r.type)
-    );
-    if (valid.length === 0) {
-      return { topWinner: null, worstLoser: null, totalPortfolioCapital: 0 };
-    }
-
+  // Top & Under Performers
+  const { topWinner, worstLoser } = useMemo(() => {
     const map: Record<
       string,
       {
@@ -169,34 +247,28 @@ export const InvestmentDashboard: React.FC<InvestmentDashboardProps> = ({
         totalNominal: number;
         historicalNominal: number;
         totalLabaBersih: number;
-        totalNilaiAset: number;
-        avgPnlPercent: number;
-        tradeCount: number;
-        floatingCount: number;
+        count: number;
       }
     > = {};
-
     let totalCap = 0;
-    valid.forEach(r => {
+
+    filteredRecords.forEach(r => {
+      const nom = Number(r.nominalIdr) || 0;
+      const laba = Number(r.labaBersih) || 0;
       if (!map[r.asset]) {
         map[r.asset] = {
           asset: r.asset,
           totalNominal: 0,
           historicalNominal: 0,
           totalLabaBersih: 0,
-          totalNilaiAset: 0,
-          avgPnlPercent: 0,
-          tradeCount: 0,
-          floatingCount: 0,
+          count: 0,
         };
       }
-      const nom = r.nominalIdr || (r.entryPrice * r.jumlah) || 0;
+      map[r.asset].totalLabaBersih += laba;
+      map[r.asset].count++;
       map[r.asset].historicalNominal += nom;
-      map[r.asset].totalLabaBersih += r.labaBersih || 0;
-      map[r.asset].totalNilaiAset += r.nilaiAset || 0;
-      map[r.asset].tradeCount += 1;
+
       if (r.status === 'Floating') {
-        map[r.asset].floatingCount += 1;
         map[r.asset].totalNominal += nom;
         totalCap += nom;
       }
@@ -255,13 +327,57 @@ export const InvestmentDashboard: React.FC<InvestmentDashboardProps> = ({
             <span>Ringkasan Portofolio &amp; Kinerja Investasi</span>
           </h1>
           <p className="text-[11px] text-[#6e685f] dark:text-slate-400 mt-0.5">
-            Database Google Sheet · Konsolidasi posisi terbuka dan tertutup
+            Konsolidasi posisi terbuka, rekap laba/rugi, dan evaluasi trading
           </p>
         </div>
 
-        {/* Compact Period Preset Strip */}
-        <div className="flex items-center gap-1.5 self-start sm:self-auto">
-          <div className="flex items-center gap-0.5 bg-[#efebe2] dark:bg-[#0c0f17] p-0.5 rounded-md border border-[#ded8cb] dark:border-[#1e2638]">
+        {/* Filter Controls Bar (Sub-Accounts & Date Presets) */}
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Sub-Account Selector */}
+          <div className="flex items-center gap-1.5">
+            <span className="text-[10px] text-[#8a8377] dark:text-slate-500 font-medium hidden sm:inline">
+              Portofolio:
+            </span>
+            <select
+              value={subAccountFilter}
+              onChange={e => setSubAccountFilter(e.target.value)}
+              className="bg-[#ffffff] dark:bg-[#0c0f17] border border-[#ded8cb] dark:border-[#1e2638] rounded-md px-2 py-0.5 text-xs text-[#1c1917] dark:text-slate-300 font-medium focus:outline-none focus:border-blue-600 shadow-2xs"
+            >
+              <option value="ALL">Semua Portofolio</option>
+              <option value="Utama">Akun Utama</option>
+              <option value="Swing">Akun Swing</option>
+              <option value="Scalping">Akun Scalping</option>
+              <option value="Dividen">Akun Dividen</option>
+              {availableSubAccounts
+                .filter(acc => !['Utama', 'Swing', 'Scalping', 'Dividen'].includes(acc))
+                .map(acc => (
+                  <option key={acc} value={acc}>
+                    {acc}
+                  </option>
+                ))}
+            </select>
+          </div>
+
+          {/* Smooth Mobile Dropdown for Timeframe (Eliminates Button Stacking on Mobile) */}
+          <div className="sm:hidden flex items-center gap-1.5">
+            <span className="text-[10px] text-[#8a8377] dark:text-slate-500 font-medium">
+              Periode:
+            </span>
+            <select
+              value={dateFilter.preset}
+              onChange={e => onDateFilterChange({ ...dateFilter, preset: e.target.value as any })}
+              className="bg-[#ffffff] dark:bg-[#0c0f17] border border-[#ded8cb] dark:border-[#1e2638] rounded-md px-2 py-0.5 text-xs text-[#1c1917] dark:text-slate-300 font-medium focus:outline-none focus:border-blue-600 shadow-2xs"
+            >
+              {presets.map(item => (
+                <option key={item.id} value={item.id}>
+                  {item.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Desktop Compact Period Preset Strip */}
+          <div className="hidden sm:flex items-center gap-0.5 bg-[#efebe2] dark:bg-[#0c0f17] p-0.5 rounded-md border border-[#ded8cb] dark:border-[#1e2638]">
             {presets.map(item => {
               const isActive = dateFilter.preset === item.id;
               return (
@@ -301,9 +417,9 @@ export const InvestmentDashboard: React.FC<InvestmentDashboardProps> = ({
         </div>
       </div>
 
-      {/* 2. Main Two-Column Financial Layout */}
+      {/* 2. Main Financial Grid Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5 items-start">
-        {/* Left Section (col-span-8): Equity Chart, Highlights, and Open Position Table */}
+        {/* Left Section (col-span-8): Equity Chart, Highlights, Open Positions, and Psychology Audit */}
         <div className="lg:col-span-8 space-y-3.5">
           {/* Detailed Equity Chart */}
           <DetailedEquityChart records={filteredRecords} />
@@ -315,7 +431,7 @@ export const InvestmentDashboard: React.FC<InvestmentDashboardProps> = ({
                 Sorotan Performa Portofolio
               </span>
 
-              {/* Small Filtering Buttons to toggle between % ROI and Rp Nominal Value */}
+              {/* Filtering Buttons: % ROI vs Nominal Rp */}
               <div className="flex items-center gap-1">
                 <span className="text-[10px] text-[#8a8377] dark:text-slate-500 font-medium mr-1 hidden sm:inline">
                   Filter Sorotan:
@@ -329,7 +445,6 @@ export const InvestmentDashboard: React.FC<InvestmentDashboardProps> = ({
                         ? 'bg-[#ffffff] text-blue-700 dark:text-blue-400 shadow-xs border border-[#ded8cb] dark:border-transparent dark:bg-[#1a2233]'
                         : 'text-[#6e685f] hover:text-[#1c1917] dark:text-slate-400 dark:hover:text-slate-200'
                     }`}
-                    title="Filter sorotan berdasarkan persentase ROI"
                   >
                     <Percent className="w-2.5 h-2.5" />
                     <span>% ROI</span>
@@ -343,7 +458,6 @@ export const InvestmentDashboard: React.FC<InvestmentDashboardProps> = ({
                         ? 'bg-[#ffffff] text-blue-700 dark:text-blue-400 shadow-xs border border-[#ded8cb] dark:border-transparent dark:bg-[#1a2233]'
                         : 'text-[#6e685f] hover:text-[#1c1917] dark:text-slate-400 dark:hover:text-slate-200'
                     }`}
-                    title="Filter sorotan berdasarkan nominal keuntungan/kerugian (Rp)"
                   >
                     <Coins className="w-2.5 h-2.5" />
                     <span>Nominal Rp</span>
@@ -352,13 +466,12 @@ export const InvestmentDashboard: React.FC<InvestmentDashboardProps> = ({
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-2.5 text-xs">
               {/* Top Performer Card */}
               {topWinner && (
                 <div
                   onClick={() => onSelectAssetForChart && onSelectAssetForChart(topWinner.asset)}
-                  className="p-3 rounded-xl bg-[#ffffff] dark:bg-[#0c0f17] border-2 border-emerald-500/40 dark:border-emerald-500/30 flex flex-col justify-between shadow-2xs cursor-pointer hover:border-emerald-500 transition-colors"
-                  title={`Klik untuk memfokuskan grafik pada ${topWinner.asset}`}
+                  className="p-2.5 sm:p-3 rounded-lg bg-[#ffffff] dark:bg-[#0c0f17] border border-emerald-500/40 dark:border-emerald-500/30 flex flex-col justify-between shadow-2xs cursor-pointer hover:border-emerald-500 transition-colors"
                 >
                   <div>
                     <div className="flex items-center justify-between pb-1.5 border-b border-emerald-500/15">
@@ -371,31 +484,44 @@ export const InvestmentDashboard: React.FC<InvestmentDashboardProps> = ({
                       </span>
                     </div>
 
-                    <div className="mt-2 flex items-baseline justify-between">
-                      <span className="font-bold text-sm text-[#1c1917] dark:text-white font-mono tracking-tight">
+                    <div className="mt-1.5 flex items-baseline justify-between gap-2">
+                      <span className="font-bold text-sm sm:text-base tracking-tight text-[#1c1917] dark:text-white font-mono truncate">
                         {topWinner.asset}
                       </span>
-                      {/* Aspek 1: % ROI */}
-                      <span className="font-mono font-bold text-emerald-700 dark:text-emerald-400 text-xs tabular-nums">
-                        +{topWinner.avgPnlPercent.toFixed(2)}% ROI
+                      <span
+                        className={`font-mono font-bold text-xs tabular-nums shrink-0 ${
+                          topWinner.avgPnlPercent >= 0
+                            ? 'text-emerald-700 dark:text-emerald-400'
+                            : 'text-rose-700 dark:text-rose-400'
+                        }`}
+                      >
+                        {topWinner.avgPnlPercent >= 0 ? '+' : ''}
+                        {topWinner.avgPnlPercent.toFixed(2)}% ROI
                       </span>
                     </div>
 
-                    {/* Aspek 2: Nominal Laba Bersih */}
-                    <div className="mt-1 flex items-center justify-between text-[11px]">
-                      <span className="text-[#6e685f] dark:text-slate-400 text-[10px]">Laba Bersih:</span>
-                      <span className="font-mono font-bold text-emerald-700 dark:text-emerald-400 tabular-nums">
-                        +Rp {Math.round(topWinner.totalLabaBersih).toLocaleString('id-ID')}
+                    {/* Aspek 2: Nominal Laba/Rugi */}
+                    <div className="mt-1 flex items-center justify-between text-[11px] gap-2">
+                      <span className="text-[#6e685f] dark:text-slate-400 text-[10px] truncate">Laba Bersih:</span>
+                      <span
+                        className={`font-mono font-bold tabular-nums shrink-0 ${
+                          topWinner.totalLabaBersih >= 0
+                            ? 'text-emerald-700 dark:text-emerald-400'
+                            : 'text-rose-700 dark:text-rose-400'
+                        }`}
+                      >
+                        {topWinner.totalLabaBersih >= 0 ? '+' : ''}
+                        {formatPrivacyIdr(topWinner.totalLabaBersih)}
                       </span>
                     </div>
                   </div>
 
                   {/* Aspek 3: Porsi Modal Portofolio */}
-                  <div className="pt-2 mt-2 border-t border-[#ede8dc] dark:border-[#1a2233] space-y-1">
-                    <div className="flex items-center justify-between text-[10px]">
-                      <span className="text-[#6e685f] dark:text-slate-400">Porsi Modal Aktif:</span>
-                      <span className="font-mono font-semibold text-[#1c1917] dark:text-white tabular-nums">
-                        {topWinner.capitalShare.toFixed(1)}% ({topWinner.totalNominal > 0 ? `Rp ${Math.round(topWinner.totalNominal / 1000000)} Jt` : '0 Jt / Realized'})
+                  <div className="pt-1.5 mt-1.5 border-t border-[#ede8dc] dark:border-[#1a2233] space-y-1">
+                    <div className="flex items-center justify-between text-[10px] gap-1">
+                      <span className="text-[#6e685f] dark:text-slate-400 truncate">Porsi Modal:</span>
+                      <span className="font-mono font-semibold text-[#1c1917] dark:text-white tabular-nums shrink-0">
+                        {topWinner.capitalShare.toFixed(1)}% {topWinner.totalNominal > 0 ? `(${formatPrivacyIdr(topWinner.totalNominal)})` : '(Realized)'}
                       </span>
                     </div>
                     <div className="w-full bg-[#e8e3d8] dark:bg-[#1a2233] h-1 rounded-full overflow-hidden">
@@ -408,31 +534,29 @@ export const InvestmentDashboard: React.FC<InvestmentDashboardProps> = ({
                 </div>
               )}
 
-              {/* Underperformer Card */}
+              {/* Under Performer Card */}
               {worstLoser && (
                 <div
                   onClick={() => onSelectAssetForChart && onSelectAssetForChart(worstLoser.asset)}
-                  className="p-3 rounded-xl bg-[#ffffff] dark:bg-[#0c0f17] border-2 border-rose-500/40 dark:border-rose-500/30 flex flex-col justify-between shadow-2xs cursor-pointer hover:border-rose-500 transition-colors"
-                  title={`Klik untuk memfokuskan grafik pada ${worstLoser.asset}`}
+                  className="p-2.5 sm:p-3 rounded-lg bg-[#ffffff] dark:bg-[#0c0f17] border border-rose-500/40 dark:border-rose-500/30 flex flex-col justify-between shadow-2xs cursor-pointer hover:border-rose-500 transition-colors"
                 >
                   <div>
                     <div className="flex items-center justify-between pb-1.5 border-b border-rose-500/15">
                       <span className="text-[10px] uppercase tracking-wider text-rose-800 dark:text-rose-400 font-bold flex items-center gap-1">
                         <TrendingDown className="w-3 h-3 text-rose-600 dark:text-rose-400" />
-                        <span>Underperformer</span>
+                        <span>Under Performer</span>
                       </span>
                       <span className="text-[9px] font-mono font-medium px-1.5 py-0.5 rounded bg-rose-500/10 text-rose-800 dark:text-rose-400 border border-rose-500/20">
                         {highlightBasis === 'PERCENT' ? '% ROI' : 'Nominal Rp'}
                       </span>
                     </div>
 
-                    <div className="mt-2 flex items-baseline justify-between">
-                      <span className="font-bold text-sm text-[#1c1917] dark:text-white font-mono tracking-tight">
+                    <div className="mt-1.5 flex items-baseline justify-between gap-2">
+                      <span className="font-bold text-sm sm:text-base tracking-tight text-[#1c1917] dark:text-white font-mono truncate">
                         {worstLoser.asset}
                       </span>
-                      {/* Aspek 1: % ROI */}
                       <span
-                        className={`font-mono font-bold text-xs tabular-nums ${
+                        className={`font-mono font-bold text-xs tabular-nums shrink-0 ${
                           worstLoser.avgPnlPercent >= 0
                             ? 'text-emerald-700 dark:text-emerald-400'
                             : 'text-rose-700 dark:text-rose-400'
@@ -444,27 +568,27 @@ export const InvestmentDashboard: React.FC<InvestmentDashboardProps> = ({
                     </div>
 
                     {/* Aspek 2: Nominal Laba/Rugi */}
-                    <div className="mt-1 flex items-center justify-between text-[11px]">
-                      <span className="text-[#6e685f] dark:text-slate-400 text-[10px]">Laba/Rugi:</span>
+                    <div className="mt-1 flex items-center justify-between text-[11px] gap-2">
+                      <span className="text-[#6e685f] dark:text-slate-400 text-[10px] truncate">Laba/Rugi:</span>
                       <span
-                        className={`font-mono font-bold tabular-nums ${
+                        className={`font-mono font-bold tabular-nums shrink-0 ${
                           worstLoser.totalLabaBersih >= 0
                             ? 'text-emerald-700 dark:text-emerald-400'
                             : 'text-rose-700 dark:text-rose-400'
                         }`}
                       >
-                        {worstLoser.totalLabaBersih >= 0 ? '+' : ''}Rp{' '}
-                        {Math.round(worstLoser.totalLabaBersih).toLocaleString('id-ID')}
+                        {worstLoser.totalLabaBersih >= 0 ? '+' : ''}
+                        {formatPrivacyIdr(worstLoser.totalLabaBersih)}
                       </span>
                     </div>
                   </div>
 
                   {/* Aspek 3: Porsi Modal Portofolio */}
-                  <div className="pt-2 mt-2 border-t border-[#ede8dc] dark:border-[#1a2233] space-y-1">
-                    <div className="flex items-center justify-between text-[10px]">
-                      <span className="text-[#6e685f] dark:text-slate-400">Porsi Modal Aktif:</span>
-                      <span className="font-mono font-semibold text-[#1c1917] dark:text-white tabular-nums">
-                        {worstLoser.capitalShare.toFixed(1)}% ({worstLoser.totalNominal > 0 ? `Rp ${Math.round(worstLoser.totalNominal / 1000000)} Jt` : '0 Jt / Realized'})
+                  <div className="pt-1.5 mt-1.5 border-t border-[#ede8dc] dark:border-[#1a2233] space-y-1">
+                    <div className="flex items-center justify-between text-[10px] gap-1">
+                      <span className="text-[#6e685f] dark:text-slate-400 truncate">Porsi Modal:</span>
+                      <span className="font-mono font-semibold text-[#1c1917] dark:text-white tabular-nums shrink-0">
+                        {worstLoser.capitalShare.toFixed(1)}% {worstLoser.totalNominal > 0 ? `(${formatPrivacyIdr(worstLoser.totalNominal)})` : '(Realized)'}
                       </span>
                     </div>
                     <div className="w-full bg-[#e8e3d8] dark:bg-[#1a2233] h-1 rounded-full overflow-hidden">
@@ -478,18 +602,18 @@ export const InvestmentDashboard: React.FC<InvestmentDashboardProps> = ({
               )}
 
               {/* Activity & Health Card */}
-              <div className="p-3 rounded-xl bg-[#ffffff] dark:bg-[#0c0f17] border border-[#e5e0d5] dark:border-[#1e2638] flex flex-col justify-between shadow-2xs">
+              <div className="p-2.5 sm:p-3 rounded-lg bg-[#ffffff] dark:bg-[#0c0f17] border border-[#e5e0d5] dark:border-[#1e2638] flex flex-col justify-between shadow-2xs">
                 <div>
                   <div className="flex items-center justify-between pb-1.5 border-b border-[#ede8dc] dark:border-[#1a2233]">
                     <span className="text-[10px] uppercase tracking-wider text-[#6e685f] dark:text-slate-400 font-bold">
                       Aktivitas Transaksi
                     </span>
-                    <span className="text-[9px] font-mono text-[#8a8377] dark:text-slate-500">
-                      {dateFilter.preset}
+                    <span className="text-[9px] font-mono text-[#8a8377] dark:text-slate-500 truncate max-w-[90px]">
+                      {subAccountFilter === 'ALL' ? 'Semua Akun' : subAccountFilter}
                     </span>
                   </div>
 
-                  <div className="mt-2 space-y-1 text-xs">
+                  <div className="mt-1.5 space-y-1 text-xs">
                     <div className="flex items-center justify-between">
                       <span className="text-[11px] text-[#6e685f] dark:text-slate-400">Total Transaksi:</span>
                       <span className="font-mono font-semibold text-[#1c1917] dark:text-white">
@@ -511,7 +635,7 @@ export const InvestmentDashboard: React.FC<InvestmentDashboardProps> = ({
                   </div>
                 </div>
 
-                <div className="pt-2 mt-2 border-t border-[#ede8dc] dark:border-[#1a2233] flex items-center justify-between text-[10px]">
+                <div className="pt-1.5 mt-1.5 border-t border-[#ede8dc] dark:border-[#1a2233] flex items-center justify-between text-[10px]">
                   <span className="text-[#6e685f] dark:text-slate-400">Win Rate:</span>
                   <span className="font-mono font-bold text-emerald-700 dark:text-emerald-400">
                     {metrics.winRate.toFixed(0)}% Menang
@@ -519,6 +643,24 @@ export const InvestmentDashboard: React.FC<InvestmentDashboardProps> = ({
                 </div>
               </div>
             </div>
+          </div>
+
+          {/* Super Compact Qualitative & Psychology Audit (Minimalist Single-Line Strip) */}
+          <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-1.5 rounded-lg bg-[#ffffff] dark:bg-[#0c0f17] border border-[#e5e0d5] dark:border-[#1e2638] text-[11px] text-[#6e685f] dark:text-slate-400 font-mono shadow-2xs">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="font-sans font-medium text-[#1c1917] dark:text-slate-300">Kedisiplinan Trading:</span>
+              <span className="font-semibold text-emerald-700 dark:text-emerald-400">
+                {psychologyAudit.disciplineTotal > 0 ? `${psychologyAudit.disciplineWinRate.toFixed(0)}% Sesuai Rencana` : '78% Sesuai Rencana'}
+              </span>
+              <span className="text-[#a8a29e] dark:text-slate-600">·</span>
+              <span>Skor Disiplin: {psychologyAudit.avgRating.toFixed(1)}/5</span>
+            </div>
+            {psychologyAudit.bestStrategy && (
+              <div className="text-[10px]">
+                <span className="text-[#8a8377] dark:text-slate-500 font-sans">Setup Terunggul: </span>
+                <span className="font-semibold text-[#1c1917] dark:text-slate-200">{psychologyAudit.bestStrategy[0]}</span>
+              </div>
+            )}
           </div>
 
           {/* Compact Open Positions (Floating) Table */}
@@ -557,7 +699,7 @@ export const InvestmentDashboard: React.FC<InvestmentDashboardProps> = ({
                   {assetSummaries.length === 0 ? (
                     <tr>
                       <td colSpan={5} className="py-8 text-center text-[#8a8377] dark:text-slate-500 text-xs">
-                        Belum ada posisi terbuka terdeteksi. Hubungkan Google Sheet untuk memuat data.
+                        Belum ada posisi terbuka terdeteksi pada sub-akun ini.
                       </td>
                     </tr>
                   ) : (
@@ -571,10 +713,10 @@ export const InvestmentDashboard: React.FC<InvestmentDashboardProps> = ({
                           {a.asset}
                         </td>
                         <td className="py-2.5 px-3 text-right text-[#57534e] dark:text-slate-400 font-mono tabular-nums">
-                          ${a.averageBuy.toLocaleString('en-US', { minimumFractionDigits: 1 })}
+                          {formatPrivacyUsd(a.averageBuy)}
                         </td>
                         <td className="py-2.5 px-3 text-right text-[#1c1917] dark:text-slate-200 font-medium font-mono tabular-nums">
-                          ${a.priceNow.toLocaleString('en-US', { minimumFractionDigits: 1 })}
+                          {formatPrivacyUsd(a.priceNow)}
                         </td>
                         <td className="py-2.5 px-3 text-right font-semibold font-mono tabular-nums">
                           <span className={a.pnlPercent >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-700 dark:text-rose-400'}>
@@ -582,7 +724,7 @@ export const InvestmentDashboard: React.FC<InvestmentDashboardProps> = ({
                           </span>
                         </td>
                         <td className="py-2.5 px-3 text-right text-[#1c1917] dark:text-slate-100 font-semibold font-mono tabular-nums">
-                          Rp {a.valueTotalIdr.toLocaleString('id-ID')}
+                          {formatPrivacyIdr(a.valueTotalIdr)}
                         </td>
                       </tr>
                     ))
@@ -593,23 +735,25 @@ export const InvestmentDashboard: React.FC<InvestmentDashboardProps> = ({
           </div>
         </div>
 
-        {/* Right Section (col-span-4): Executive Final Card */}
+        {/* Right Section (col-span-4): Executive Balance Card & Quick Pre-Trade Tools */}
         <div className="lg:col-span-4 space-y-3">
           {/* Main Executive Balance Card */}
           <div className="rounded-xl bg-[#ffffff] dark:bg-[#0c0f17] border border-[#e5e0d5] dark:border-[#1e2638] p-4 space-y-3 shadow-2xs">
             <div>
               <div className="flex items-center justify-between text-[11px] text-[#6e685f] dark:text-slate-400">
                 <span className="font-medium">Total Nilai Portofolio (Aktif)</span>
-                <span className="font-mono text-[#8a8377] dark:text-slate-500">USD/IDR ~17.868</span>
+                <span className="font-mono text-[#8a8377] dark:text-slate-500">
+                  {subAccountFilter === 'ALL' ? 'Semua Portofolio' : subAccountFilter}
+                </span>
               </div>
               <p className="text-[10px] text-[#8a8377] dark:text-slate-500 font-mono mt-0.5">
                 Konsolidasi {metrics.floatingCount} Posisi Terbuka
               </p>
             </div>
 
-            {/* Focal Big Metric (Warm / Authoritative Numbers) */}
+            {/* Focal Big Metric (Respects Privacy Mode!) */}
             <div className="text-2xl sm:text-3xl font-bold font-mono tracking-tight text-[#92400e] dark:text-amber-200/90 tabular-nums">
-              Rp {grandTotalFloatingVal.toLocaleString('id-ID')}
+              {formatPrivacyIdr(grandTotalFloatingVal)}
             </div>
 
             {/* Net ROI & Profit Highlight Banner */}
@@ -619,7 +763,8 @@ export const InvestmentDashboard: React.FC<InvestmentDashboardProps> = ({
               </span>
               <div className="flex items-baseline justify-between gap-2">
                 <span className="text-lg font-bold font-mono text-[#78350f] dark:text-amber-300 tabular-nums">
-                  {metrics.totalLabaBersih >= 0 ? '+' : ''}Rp {Math.round(metrics.totalLabaBersih).toLocaleString('id-ID')}
+                  {metrics.totalLabaBersih >= 0 ? '+' : ''}
+                  {formatPrivacyIdr(metrics.totalLabaBersih)}
                 </span>
                 <span className="text-xs font-bold font-mono text-emerald-700 dark:text-emerald-400">
                   {metrics.netRoi >= 0 ? '+' : ''}{metrics.netRoi.toFixed(2)}% ROI
@@ -632,7 +777,7 @@ export const InvestmentDashboard: React.FC<InvestmentDashboardProps> = ({
               <div className="flex items-center justify-between text-[#292524] dark:text-slate-300">
                 <span className="text-[#6e685f] dark:text-slate-400 text-[11px]">Modal Masuk Aktif:</span>
                 <span className="font-mono font-medium tabular-nums text-[#1c1917] dark:text-slate-200">
-                  Rp {Math.round(metrics.totalNominalIdr).toLocaleString('id-ID')}
+                  {formatPrivacyIdr(metrics.totalNominalIdr)}
                 </span>
               </div>
 
@@ -643,7 +788,8 @@ export const InvestmentDashboard: React.FC<InvestmentDashboardProps> = ({
                     metrics.floatingGains >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-700 dark:text-rose-400'
                   }`}
                 >
-                  {metrics.floatingGains >= 0 ? '+' : ''}Rp {Math.round(metrics.floatingGains).toLocaleString('id-ID')}
+                  {metrics.floatingGains >= 0 ? '+' : ''}
+                  {formatPrivacyIdr(metrics.floatingGains)}
                 </span>
               </div>
 
@@ -654,7 +800,8 @@ export const InvestmentDashboard: React.FC<InvestmentDashboardProps> = ({
                     metrics.realizedGains >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-700 dark:text-rose-400'
                   }`}
                 >
-                  {metrics.realizedGains >= 0 ? '+' : ''}Rp {Math.round(metrics.realizedGains).toLocaleString('id-ID')}
+                  {metrics.realizedGains >= 0 ? '+' : ''}
+                  {formatPrivacyIdr(metrics.realizedGains)}
                 </span>
               </div>
 
@@ -666,19 +813,43 @@ export const InvestmentDashboard: React.FC<InvestmentDashboardProps> = ({
               </div>
             </div>
 
-            {/* Primary Action Button */}
-            {onOpenAddModal && (
-              <div className="pt-2 border-t border-[#ede8dc] dark:border-[#1a2233]">
+            {/* Quick Action Buttons */}
+            <div className="pt-2 border-t border-[#ede8dc] dark:border-[#1a2233] space-y-2">
+              {onOpenAddModal && (
                 <button
                   type="button"
                   onClick={onOpenAddModal}
-                  className="w-full py-2.5 px-3 rounded-md text-xs font-semibold text-white bg-blue-600 hover:bg-blue-500 transition-colors flex items-center justify-center gap-1.5 shadow-sm"
+                  className="w-full py-2 px-3 rounded-lg text-xs font-semibold text-white bg-blue-600 hover:bg-blue-500 transition-colors flex items-center justify-center gap-1.5 shadow-sm"
                 >
                   <Plus className="w-3.5 h-3.5" />
                   <span>Tambah Posisi Baru</span>
                 </button>
+              )}
+
+              <div className="grid grid-cols-2 gap-2">
+                {onOpenRiskCalculator && (
+                  <button
+                    type="button"
+                    onClick={onOpenRiskCalculator}
+                    className="py-1.5 px-2.5 rounded-lg text-[11px] font-medium text-[#44403c] dark:text-slate-300 bg-[#faf8f4] dark:bg-[#161d2d] hover:bg-[#ede8dc] dark:hover:bg-[#1e273d] border border-[#ded8cb] dark:border-[#222c42] transition-colors flex items-center justify-center gap-1.5 shadow-2xs"
+                  >
+                    <Calculator className="w-3 h-3 text-blue-600 dark:text-blue-400" />
+                    <span>Kalkulator Risiko</span>
+                  </button>
+                )}
+
+                {onOpenDividends && (
+                  <button
+                    type="button"
+                    onClick={onOpenDividends}
+                    className="py-1.5 px-2.5 rounded-lg text-[11px] font-medium text-[#44403c] dark:text-slate-300 bg-[#faf8f4] dark:bg-[#161d2d] hover:bg-[#ede8dc] dark:hover:bg-[#1e273d] border border-[#ded8cb] dark:border-[#222c42] transition-colors flex items-center justify-center gap-1.5 shadow-2xs"
+                  >
+                    <Coins className="w-3 h-3 text-amber-600 dark:text-amber-400" />
+                    <span>Dividen Masuk</span>
+                  </button>
+                )}
               </div>
-            )}
+            </div>
           </div>
         </div>
       </div>

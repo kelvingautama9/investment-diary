@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import type { User } from 'firebase/auth';
 import type {
   InvestmentRecord,
@@ -24,6 +24,7 @@ import {
   SHEET_NAME,
   isNonInvestmentOrExpense,
 } from './services/googleSheets';
+import { detectDataAnomalies } from './services/dataSanitizer';
 
 import { Header } from './components/Header';
 import { Sidebar } from './components/Sidebar';
@@ -33,12 +34,17 @@ import { TradeLedgerTable } from './components/TradeLedgerTable';
 import { GoogleSheetSettingsPage } from './components/GoogleSheetSettingsPage';
 import { AddEditTradeModal } from './components/AddEditTradeModal';
 import { DeleteConfirmModal } from './components/DeleteConfirmModal';
+import { RiskCalculatorModal } from './components/RiskCalculatorModal';
+import { DividendTrackerModal } from './components/DividendTrackerModal';
+import { DataSanitizationModal } from './components/DataSanitizationModal';
 import { Globe, Copy, Check, ExternalLink, AlertTriangle, X, Settings2, Key, Link2, ChevronDown, Sparkles } from 'lucide-react';
 
 export default function App() {
   // Navigation State - 'overview' | 'heatmap' | 'ledger' | 'settings'
   const [activePage, setActivePage] = useState<ActivePage>('overview');
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() =>
+    typeof window !== 'undefined' ? window.innerWidth < 1024 : true
+  );
   const [selectedAsset, setSelectedAsset] = useState<string | null>(null);
 
   // Auth state
@@ -64,9 +70,25 @@ export default function App() {
   // Modals
   const [isAddEditModalOpen, setIsAddEditModalOpen] = useState(false);
   const [editingRecord, setEditingRecord] = useState<InvestmentRecord | null>(null);
+  const [initialTradePrefill, setInitialTradePrefill] = useState<Partial<InvestmentRecord> | undefined>(undefined);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [recordToDelete, setRecordToDelete] = useState<InvestmentRecord | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  // New Feature Modals
+  const [isRiskModalOpen, setIsRiskModalOpen] = useState(false);
+  const [isDividendModalOpen, setIsDividendModalOpen] = useState(false);
+  const [isSanitizerModalOpen, setIsSanitizerModalOpen] = useState(false);
+
+  // Anomaly calculation
+  const sanitizationReport = useMemo(() => detectDataAnomalies(records), [records]);
+
+  // Active capital calculation
+  const activeCapital = useMemo(() => {
+    return records
+      .filter(r => r.status === 'Floating' && !isNonInvestmentOrExpense(r.asset) && !isNonInvestmentOrExpense(r.type))
+      .reduce((sum, r) => sum + (r.nominalIdr || 0), 0);
+  }, [records]);
 
   const addSyncLog = useCallback((msg: string) => {
     const time = new Date().toLocaleTimeString();
@@ -364,10 +386,22 @@ export default function App() {
         lastSyncTime={lastSyncTime}
         onToggleSidebar={() => setIsSidebarCollapsed(prev => !prev)}
         isSidebarCollapsed={isSidebarCollapsed}
+        onOpenRiskCalculator={() => setIsRiskModalOpen(true)}
+        onOpenDividends={() => setIsDividendModalOpen(true)}
+        onOpenSanitizer={() => setIsSanitizerModalOpen(true)}
+        anomalyCount={sanitizationReport.anomalies.length}
       />
 
       {/* 2. Main Body with Collapsible Sidebar & Page Workspace */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex overflow-hidden relative">
+        {/* Mobile backdrop overlay when sidebar is open */}
+        {!isSidebarCollapsed && (
+          <div
+            className="fixed inset-0 bg-black/40 z-40 md:hidden backdrop-blur-2xs transition-opacity"
+            onClick={() => setIsSidebarCollapsed(true)}
+          />
+        )}
+
         {/* Left Collapsible Sidebar */}
         <Sidebar
           records={records}
@@ -376,6 +410,9 @@ export default function App() {
           selectedAsset={selectedAsset}
           onSelectAsset={asset => {
             setSelectedAsset(asset);
+            if (window.innerWidth < 768) {
+              setIsSidebarCollapsed(true);
+            }
             if (asset && activePage === 'settings') {
               setActivePage('overview');
             }
@@ -396,10 +433,23 @@ export default function App() {
           sheetTitle={sheetTitle}
           isSyncing={isSyncing}
           onManualSync={() => syncWithGoogleSheet()}
+          onOpenRiskCalculator={() => {
+            if (window.innerWidth < 768) setIsSidebarCollapsed(true);
+            setIsRiskModalOpen(true);
+          }}
+          onOpenDividends={() => {
+            if (window.innerWidth < 768) setIsSidebarCollapsed(true);
+            setIsDividendModalOpen(true);
+          }}
+          onOpenSanitizer={() => {
+            if (window.innerWidth < 768) setIsSidebarCollapsed(true);
+            setIsSanitizerModalOpen(true);
+          }}
+          anomalyCount={sanitizationReport.anomalies.length}
         />
 
         {/* Main Page Content Workspace */}
-        <main className="flex-1 overflow-y-auto p-3 sm:p-4.5 bg-[#f6f4ee] dark:bg-[#080a0f] paper-matte-bg">
+        <main className="flex-1 overflow-y-auto p-2.5 sm:p-4.5 pb-20 md:pb-4.5 bg-[#f6f4ee] dark:bg-[#080a0f] paper-matte-bg">
           <div className="max-w-[1440px] mx-auto">
             {/* Page 1: Ringkasan Portofolio (Overview) */}
             {(activePage === 'overview' || activePage === 'portfolio') && (
@@ -410,9 +460,12 @@ export default function App() {
                 onSelectAssetForChart={symbol => setSelectedAsset(symbol)}
                 onOpenAddModal={() => {
                   setEditingRecord(null);
+                  setInitialTradePrefill(undefined);
                   setIsAddEditModalOpen(true);
                 }}
                 onNavigateToTab={setActivePage}
+                onOpenRiskCalculator={() => setIsRiskModalOpen(true)}
+                onOpenDividends={() => setIsDividendModalOpen(true)}
               />
             )}
 
@@ -476,6 +529,7 @@ export default function App() {
                   onDisconnectSheet={handleDisconnectSpreadsheet}
                   isSyncing={isSyncing}
                   onManualSync={() => syncWithGoogleSheet()}
+                  onOpenSanitizer={() => setIsSanitizerModalOpen(true)}
                 />
               </div>
             )}
@@ -506,9 +560,11 @@ export default function App() {
         onClose={() => {
           setIsAddEditModalOpen(false);
           setEditingRecord(null);
+          setInitialTradePrefill(undefined);
         }}
         onSave={handleSaveRecord}
         editingRecord={editingRecord}
+        initialPrefill={initialTradePrefill}
       />
 
       {/* 5. Delete Confirmation Modal */}
@@ -522,6 +578,45 @@ export default function App() {
         record={recordToDelete}
         sheetTitle={sheetTitle}
         isDeleting={isDeleting}
+      />
+
+      {/* 6. Pre-Trade Risk & Position Sizing Calculator Modal */}
+      <RiskCalculatorModal
+        isOpen={isRiskModalOpen}
+        onClose={() => setIsRiskModalOpen(false)}
+        defaultCapital={activeCapital}
+        onApplyPlan={plan => {
+          setEditingRecord(null);
+          setInitialTradePrefill({
+            asset: plan.asset,
+            entryPrice: plan.entryPrice,
+            nominalIdr: plan.nominalIdr,
+            jumlah: plan.jumlah,
+            kursIdrUsd: plan.kursIdrUsd,
+            notes: plan.notes,
+            status: 'Floating',
+            type: 'BUY',
+          });
+          setIsAddEditModalOpen(true);
+        }}
+      />
+
+      {/* 7. Corporate Action & Dividend Tracker Modal */}
+      <DividendTrackerModal
+        isOpen={isDividendModalOpen}
+        onClose={() => setIsDividendModalOpen(false)}
+      />
+
+      {/* 8. Data Sanitization & Anomaly Inspector Modal */}
+      <DataSanitizationModal
+        isOpen={isSanitizerModalOpen}
+        onClose={() => setIsSanitizerModalOpen(false)}
+        anomalies={sanitizationReport.anomalies}
+        records={records}
+        onEditRecord={rec => {
+          setEditingRecord(rec);
+          setIsAddEditModalOpen(true);
+        }}
       />
 
       {/* 6. Unauthorized Domain Alert Modal */}

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import type { User } from 'firebase/auth';
 import type { ActivePage } from '../types';
 import { useTheme } from '../context/ThemeContext';
+import { usePrivacy } from '../context/PrivacyContext';
 import {
   LayoutDashboard,
   Grid3X3,
@@ -19,6 +20,12 @@ import {
   Menu,
   Sun,
   Moon,
+  Eye,
+  EyeOff,
+  Calculator,
+  Coins,
+  AlertTriangle,
+  SlidersHorizontal,
 } from 'lucide-react';
 
 interface HeaderProps {
@@ -38,6 +45,10 @@ interface HeaderProps {
   lastSyncTime: Date | null;
   onToggleSidebar?: () => void;
   isSidebarCollapsed?: boolean;
+  onOpenRiskCalculator?: () => void;
+  onOpenDividends?: () => void;
+  onOpenSanitizer?: () => void;
+  anomalyCount?: number;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -57,8 +68,14 @@ export const Header: React.FC<HeaderProps> = ({
   lastSyncTime,
   onToggleSidebar,
   isSidebarCollapsed,
+  onOpenRiskCalculator,
+  onOpenDividends,
+  onOpenSanitizer,
+  anomalyCount = 0,
 }) => {
   const { isDark, toggleTheme } = useTheme();
+  const { isPrivacyMode, togglePrivacyMode } = usePrivacy();
+  const [toolsDropdownOpen, setToolsDropdownOpen] = useState(false);
   const [userDropdown, setUserDropdown] = useState(false);
   const [sheetDropdownOpen, setSheetDropdownOpen] = useState(false);
   const [connectPopoverOpen, setConnectPopoverOpen] = useState(false);
@@ -91,7 +108,7 @@ export const Header: React.FC<HeaderProps> = ({
         <div className="absolute bottom-0 left-0 right-0 h-[1.5px] bg-blue-600 dark:bg-blue-500 animate-pulse z-50" />
       )}
 
-      <div className="w-full px-3 sm:px-5 h-13 flex items-center justify-between gap-3">
+      <div className="w-full px-3 sm:px-4 h-12 flex items-center justify-between gap-2.5">
         {/* Zone 1: Sidebar Toggle & Brand */}
         <div className="flex items-center gap-2 shrink-0">
           {onToggleSidebar && (
@@ -110,9 +127,8 @@ export const Header: React.FC<HeaderProps> = ({
           </span>
         </div>
 
-        {/* Zone 2: Navigation Links (Clean Multi-Page Segmented Tab Strip) */}
-        {/* Centered on md+ screens with absolute position to ensure zero horizontal shift */}
-        <nav className="hidden md:flex items-center gap-1 bg-[#efebe2] dark:bg-[#0c0f17] p-0.5 rounded-md border border-[#ded8cb] dark:border-[#1a2233] absolute left-1/2 -translate-x-1/2 z-10">
+        {/* Zone 2: Navigation Links (Clean Multi-Page Segmented Tab Strip in Flex Flow - NO OVERLAP) */}
+        <nav className="hidden md:flex items-center gap-0.5 bg-[#efebe2] dark:bg-[#0c0f17] p-0.5 rounded-md border border-[#ded8cb] dark:border-[#1a2233] shrink-0">
           {navItems.map(item => {
             const Icon = item.icon;
             const isActive = normalizedActivePage === item.id;
@@ -134,36 +150,116 @@ export const Header: React.FC<HeaderProps> = ({
           })}
         </nav>
 
-        {/* Mobile Navigation for screens < md */}
-        <nav className="flex md:hidden items-center gap-1 bg-[#efebe2] dark:bg-[#0c0f17] p-0.5 rounded-md border border-[#ded8cb] dark:border-[#1a2233] overflow-x-auto no-scrollbar shrink-0">
-          {navItems.map(item => {
-            const Icon = item.icon;
-            const isActive = normalizedActivePage === item.id;
-            return (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => onSelectPage(item.id)}
-                className={`flex items-center gap-1.5 px-2 py-1 rounded text-xs font-medium transition-colors whitespace-nowrap ${
-                  isActive
-                    ? 'bg-[#ffffff] text-[#1c1917] shadow-xs border border-[#ded8cb] dark:border-transparent dark:bg-[#182030] dark:text-white'
-                    : 'text-[#6e685f] hover:text-[#1c1917] dark:text-slate-400 dark:hover:text-slate-200'
-                }`}
-              >
-                <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-blue-600 dark:text-blue-400' : 'text-[#8a8377] dark:text-slate-400'}`} />
-                <span>{item.label}</span>
-              </button>
-            );
-          })}
-        </nav>
+        {/* Zone 3: Consolidated Header Actions (Clean, Zero Collision) */}
+        <div className="flex items-center gap-1.5 shrink-0 ml-auto sm:ml-0">
+          {/* Quick Tools Dropdown (Kalkulator Risiko, Dividen, Pemeriksa Anomali) */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => {
+                setToolsDropdownOpen(!toolsDropdownOpen);
+                setSheetDropdownOpen(false);
+                setUserDropdown(false);
+                setConnectPopoverOpen(false);
+              }}
+              title="Peralatan Portofolio & Manajemen Risiko"
+              className={`p-1.5 rounded-lg border transition-colors flex items-center justify-center relative shadow-xs ${
+                toolsDropdownOpen || anomalyCount > 0
+                  ? 'border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-400'
+                  : 'border-[#ded8cb] dark:border-[#232d42] bg-[#ffffff] dark:bg-[#101520] hover:bg-[#f7f5ef] dark:hover:bg-[#161d2c] text-[#57534e] dark:text-slate-300'
+              }`}
+            >
+              <SlidersHorizontal className="w-3.5 h-3.5" />
+              {anomalyCount > 0 && (
+                <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-amber-500 text-white rounded-full text-[9px] font-bold flex items-center justify-center font-mono ring-1 ring-white dark:ring-[#0c0f17]">
+                  {anomalyCount}
+                </span>
+              )}
+            </button>
 
-        {/* Zone 3: Actions (Theme Toggle, Connection, Sync, Sign-in) - Always locked to right edge with stable elements */}
-        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 ml-auto z-10">
+            {toolsDropdownOpen && (
+              <div className="absolute right-0 mt-2 w-64 rounded-xl bg-[#ffffff] dark:bg-[#0f131c] border border-[#ded8cb] dark:border-[#1e2638] shadow-2xl p-2 z-50 text-xs text-[#292524] dark:text-slate-300 space-y-1">
+                <div className="px-2.5 py-1.5 border-b border-[#e5e0d5] dark:border-[#1a2233] text-[10px] uppercase font-bold text-[#8a8377] tracking-wider">
+                  Peralatan Portofolio
+                </div>
+
+                {onOpenRiskCalculator && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setToolsDropdownOpen(false);
+                      onOpenRiskCalculator();
+                    }}
+                    className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg hover:bg-[#f7f5ef] dark:hover:bg-[#182030] text-left transition-colors"
+                  >
+                    <Calculator className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0" />
+                    <div>
+                      <div className="font-medium text-[#1c1917] dark:text-white">Kalkulator Risiko</div>
+                      <div className="text-[10px] text-[#8a8377]">Hitung sizing & batas risiko</div>
+                    </div>
+                  </button>
+                )}
+
+                {onOpenDividends && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setToolsDropdownOpen(false);
+                      onOpenDividends();
+                    }}
+                    className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg hover:bg-[#f7f5ef] dark:hover:bg-[#182030] text-left transition-colors"
+                  >
+                    <Coins className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
+                    <div>
+                      <div className="font-medium text-[#1c1917] dark:text-white">Pencatatan Dividen</div>
+                      <div className="text-[10px] text-[#8a8377]">Rekap dividen & aksi korporasi</div>
+                    </div>
+                  </button>
+                )}
+
+                {anomalyCount > 0 && onOpenSanitizer && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setToolsDropdownOpen(false);
+                      onOpenSanitizer();
+                    }}
+                    className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-800 dark:text-amber-300 text-left transition-colors"
+                  >
+                    <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
+                    <div>
+                      <div className="font-semibold">{anomalyCount} Anomali Terdeteksi</div>
+                      <div className="text-[10px] text-amber-700/80 dark:text-amber-400/80">Periksa & perbaiki baris anomali</div>
+                    </div>
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Privacy Mode (Hide Balances) Toggle */}
+          <button
+            type="button"
+            onClick={togglePrivacyMode}
+            title={isPrivacyMode ? 'Mode Privasi Aktif' : 'Sembunyikan Saldo Nominal'}
+            className={`p-1.5 rounded-lg border transition-colors flex items-center justify-center shadow-xs ${
+              isPrivacyMode
+                ? 'border-blue-500/40 bg-blue-500/15 text-blue-600 dark:text-blue-400'
+                : 'border-[#ded8cb] dark:border-[#232d42] bg-[#ffffff] dark:bg-[#101520] hover:bg-[#f7f5ef] dark:hover:bg-[#161d2c] text-[#57534e] dark:text-slate-300'
+            }`}
+          >
+            {isPrivacyMode ? (
+              <EyeOff className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+            ) : (
+              <Eye className="w-3.5 h-3.5" />
+            )}
+          </button>
+
           {/* Theme Toggle Button */}
           <button
             type="button"
             onClick={toggleTheme}
-            title={isDark ? 'Ganti ke Mode Terang (Vanilla Paper)' : 'Ganti ke Mode Gelap'}
+            title={isDark ? 'Ganti ke Mode Terang' : 'Ganti ke Mode Gelap'}
             className="p-1.5 rounded-lg border border-[#ded8cb] dark:border-[#232d42] bg-[#ffffff] dark:bg-[#101520] hover:bg-[#f7f5ef] dark:hover:bg-[#161d2c] text-[#57534e] dark:text-slate-300 hover:text-[#1c1917] dark:hover:text-white transition-colors flex items-center justify-center shadow-xs"
           >
             {isDark ? (
@@ -173,45 +269,29 @@ export const Header: React.FC<HeaderProps> = ({
             )}
           </button>
 
-          {/* Connected vs Disconnected State - STABLE: NEVER unmount or resize buttons during sync! */}
+          {/* Connected vs Disconnected State Pill */}
           {sheetConnected ? (
-            <div className="flex items-center gap-1.5">
-              {/* Manual Sync Button: Remains mounted, spins RefreshCw when syncing */}
+            <div className="relative">
               <button
                 type="button"
-                onClick={onManualSync}
-                disabled={isSyncing}
-                title={isSyncing ? 'Sedang menyinkronkan data...' : 'Sinkronkan data dari Google Sheet sekarang'}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-[#ded8cb] dark:border-[#232d42] bg-[#ffffff] dark:bg-[#101520] hover:bg-[#f7f5ef] dark:hover:bg-[#161d2c] text-[#44403c] dark:text-slate-300 hover:text-[#1c1917] dark:hover:text-white transition-colors text-xs font-medium shadow-xs disabled:opacity-85 whitespace-nowrap"
+                onClick={() => {
+                  setSheetDropdownOpen(!sheetDropdownOpen);
+                  setUserDropdown(false);
+                  setToolsDropdownOpen(false);
+                  setConnectPopoverOpen(false);
+                }}
+                className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg border border-emerald-600/30 bg-emerald-500/10 text-emerald-800 dark:text-emerald-300 text-xs font-medium hover:bg-emerald-500/20 transition-colors whitespace-nowrap shadow-2xs"
               >
-                <RefreshCw
-                  className={`w-3.5 h-3.5 ${
-                    isSyncing ? 'animate-spin text-blue-600 dark:text-blue-400' : 'text-[#8a8377] dark:text-slate-400'
+                <span
+                  className={`w-1.5 h-1.5 rounded-full ${
+                    isSyncing ? 'bg-blue-500 animate-pulse' : 'bg-emerald-500 dark:bg-emerald-400'
                   }`}
                 />
-                <span className="hidden md:inline">{isSyncing ? 'Sinkron...' : 'Sinkronkan'}</span>
+                <span className="hidden sm:inline">
+                  {isSyncing ? 'Sinkron...' : 'Terhubung'}
+                </span>
+                <ChevronDown className="w-3 h-3 text-emerald-700 dark:text-emerald-400 ml-0.5" />
               </button>
-
-              {/* Connected Details Dropdown Button: Remains mounted with rock-solid width */}
-              <div className="relative">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSheetDropdownOpen(!sheetDropdownOpen);
-                    setUserDropdown(false);
-                    setConnectPopoverOpen(false);
-                  }}
-                  className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-emerald-600/30 bg-emerald-500/10 text-emerald-800 dark:text-emerald-300 text-xs font-medium hover:bg-emerald-500/20 transition-colors whitespace-nowrap"
-                >
-                  <span
-                    className={`w-1.5 h-1.5 rounded-full ${
-                      isSyncing ? 'bg-blue-500 animate-pulse' : 'bg-emerald-500 dark:bg-emerald-400'
-                    }`}
-                  />
-                  <span className="hidden sm:inline">Google Sheet Terhubung</span>
-                  <span className="sm:hidden">Terhubung</span>
-                  <ChevronDown className="w-3.5 h-3.5 text-emerald-700 dark:text-emerald-400 ml-0.5" />
-                </button>
 
                 {sheetDropdownOpen && (
                   <div className="absolute right-0 mt-2 w-72 rounded-xl bg-[#ffffff] dark:bg-[#0f131c] border border-[#ded8cb] dark:border-[#1e2638] shadow-2xl p-3 z-50 space-y-2.5 text-xs text-[#292524] dark:text-slate-300">
@@ -269,7 +349,6 @@ export const Header: React.FC<HeaderProps> = ({
                   </div>
                 )}
               </div>
-            </div>
           ) : (
             /* Disconnected State: Clean Connect Button */
             <div className="relative">
@@ -427,6 +506,30 @@ export const Header: React.FC<HeaderProps> = ({
           )}
         </div>
       </div>
+
+      {/* Mobile Bottom Navigation Bar (Android-ready ergonomic bottom tab bar) */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#ffffff]/95 dark:bg-[#0c0f17]/95 backdrop-blur-md border-t border-[#ded8cb] dark:border-[#1a2233] py-1 px-2 flex items-center justify-around shadow-lg safe-bottom">
+        {navItems.map(item => {
+          const Icon = item.icon;
+          const isActive = normalizedActivePage === item.id;
+          return (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => onSelectPage(item.id)}
+              className={`flex flex-col items-center justify-center gap-0.5 py-1 px-2 rounded-lg transition-colors flex-1 ${
+                isActive
+                  ? 'text-blue-600 dark:text-blue-400 font-bold'
+                  : 'text-[#6e685f] dark:text-slate-400 hover:text-[#1c1917]'
+              }`}
+            >
+              <Icon className={`w-4 h-4 ${isActive ? 'text-blue-600 dark:text-blue-400' : 'text-[#8a8377] dark:text-slate-400'}`} />
+              <span className="text-[10px] tracking-tight">{item.label}</span>
+            </button>
+          );
+        })}
+      </nav>
     </header>
   );
 };
+

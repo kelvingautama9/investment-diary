@@ -344,120 +344,116 @@ export const DetailedEquityChart: React.FC<DetailedEquityChartProps> = ({ record
             </div>
           </div>
 
-          {/* Segmented Control: Line vs Bar - Fixed height, shrink-0, whitespace-nowrap */}
-          <div className="flex items-center shrink-0 self-start sm:self-center bg-[#efebe2] dark:bg-[#090b10] p-1 rounded-lg border border-[#ded8cb] dark:border-[#1a2233] h-9">
+          {/* Segmented Control: Line vs Bar - Compact & Proportionate */}
+          <div className="flex items-center shrink-0 self-start sm:self-center bg-[#efebe2] dark:bg-[#090b10] p-0.5 rounded-lg border border-[#ded8cb] dark:border-[#1a2233] h-7 sm:h-8">
             <button
               type="button"
               onClick={() => setChartType('line')}
-              className={`flex items-center justify-center gap-1.5 px-3 h-7 text-xs font-semibold rounded-md transition-all whitespace-nowrap shrink-0 ${
+              className={`flex items-center justify-center gap-1 px-2 sm:px-2.5 h-6 sm:h-7 text-[10px] sm:text-[11px] font-medium rounded-md transition-all whitespace-nowrap shrink-0 ${
                 chartType === 'line'
-                  ? 'bg-[#ffffff] text-[#1c1917] shadow-xs border border-[#ded8cb] dark:border-transparent dark:bg-[#182030] dark:text-white'
+                  ? 'bg-[#ffffff] text-[#1c1917] shadow-xs border border-[#ded8cb] dark:border-transparent dark:bg-[#182030] dark:text-white font-semibold'
                   : 'text-[#6e685f] hover:text-[#1c1917] dark:text-slate-400 dark:hover:text-slate-200'
               }`}
               title="Tampilkan Kurva Pertumbuhan Akumulasi"
             >
-              <LineIcon className="w-3.5 h-3.5 shrink-0" />
-              <span className="whitespace-nowrap">Kurva Akumulasi</span>
+              <LineIcon className="w-3 h-3 shrink-0" />
+              <span>Kurva Akumulasi</span>
             </button>
             <button
               type="button"
               onClick={() => setChartType('bar')}
-              className={`flex items-center justify-center gap-1.5 px-3 h-7 text-xs font-semibold rounded-md transition-all whitespace-nowrap shrink-0 ${
+              className={`flex items-center justify-center gap-1 px-2 sm:px-2.5 h-6 sm:h-7 text-[10px] sm:text-[11px] font-medium rounded-md transition-all whitespace-nowrap shrink-0 ${
                 chartType === 'bar'
-                  ? 'bg-[#ffffff] text-[#1c1917] shadow-xs border border-[#ded8cb] dark:border-transparent dark:bg-[#182030] dark:text-white'
+                  ? 'bg-[#ffffff] text-[#1c1917] shadow-xs border border-[#ded8cb] dark:border-transparent dark:bg-[#182030] dark:text-white font-semibold'
                   : 'text-[#6e685f] hover:text-[#1c1917] dark:text-slate-400 dark:hover:text-slate-200'
               }`}
               title="Tampilkan Diagram Batang Laba/Rugi Tiap Transaksi"
             >
-              <BarChart2 className="w-3.5 h-3.5 shrink-0" />
-              <span className="whitespace-nowrap">Hasil Transaksi</span>
+              <BarChart2 className="w-3 h-3 shrink-0" />
+              <span>Hasil Transaksi</span>
             </button>
           </div>
         </div>
 
-        {/* Stats Row */}
-        <div className="flex items-center justify-between flex-wrap gap-2.5 text-xs pb-3 border-b border-[#ede8dc] dark:border-[#1a2233]">
-          {chartType === 'line' ? (
-            <>
-              {/* Recent PnL */}
-              <div className="flex items-center gap-2">
-                <span className="text-[#6e685f] dark:text-slate-400">Transaksi Terakhir:</span>
-                <span className={`font-semibold ${todaysPnL >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-700 dark:text-rose-400'}`}>
-                  {todaysPnL >= 0 ? '+' : ''}Rp {Math.round(todaysPnL).toLocaleString('id-ID')}
-                </span>
-              </div>
+        {/* Stats Row: Professional Symmetrical Metric Grid */}
+        {chartType === 'line' ? (
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between text-[11px] text-[#6e685f] dark:text-slate-400 px-0.5">
+              <span>Transaksi Terakhir:</span>
+              <span className={`font-mono font-semibold ${todaysPnL >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-700 dark:text-rose-400'}`}>
+                {todaysPnL >= 0 ? '+' : ''}Rp {Math.round(todaysPnL).toLocaleString('id-ID')}
+              </span>
+            </div>
 
-              {/* High, Low, Realized Stats */}
-              <div className="flex items-center gap-4 text-[#6e685f] dark:text-slate-400 text-xs font-medium">
-                <span>
-                  High:{' '}
-                  <span className="text-blue-700 dark:text-blue-400 font-semibold">{formatShortIdr(highValue)}</span>
-                </span>
-                <span>
-                  Low:{' '}
-                  <span className="text-amber-800 dark:text-amber-400 font-semibold">{formatShortIdr(lowValue)}</span>
-                </span>
-                <span>
-                  Realized:{' '}
-                  <span className="text-emerald-700 dark:text-emerald-400 font-semibold">{formatShortIdr(totalRealizedGains)}</span>
-                </span>
-                <span>
-                  Floating:{' '}
-                  <span className="text-sky-700 dark:text-sky-400 font-semibold">{formatShortIdr(totalFloatingGains)}</span>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 sm:gap-2 p-2 rounded-lg bg-[#faf8f4] dark:bg-[#090c12] border border-[#ede8dc] dark:border-[#1a2233]">
+              <div className="min-w-0">
+                <span className="text-[10px] text-[#6e685f] dark:text-slate-400 block font-medium truncate">Tertinggi (High)</span>
+                <span className="font-mono font-semibold text-xs text-blue-700 dark:text-blue-400 whitespace-nowrap block tabular-nums">
+                  {formatShortIdr(highValue)}
                 </span>
               </div>
-            </>
-          ) : (
-            <>
-              {/* Bar stats: Win / Loss / Ratio */}
-              <div className="flex items-center gap-3">
-                <div className="flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />
-                  <span className="text-[#44403c] dark:text-slate-300 font-medium">
-                    Profit: <strong className="text-emerald-700 dark:text-emerald-400">{winCount}</strong>
-                  </span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-rose-500 inline-block" />
-                  <span className="text-[#44403c] dark:text-slate-300 font-medium">
-                    Loss: <strong className="text-rose-700 dark:text-rose-400">{lossCount}</strong>
-                  </span>
-                </div>
-                <span className="text-[#b8b0a2] dark:text-slate-500">•</span>
-                <span className="text-[#6e685f] dark:text-slate-400">
-                  Win Rate:{' '}
-                  <strong className="text-[#1c1917] dark:text-white">
-                    {Math.round((winCount / (winCount + lossCount || 1)) * 100)}%
-                  </strong>
+              <div className="min-w-0">
+                <span className="text-[10px] text-[#6e685f] dark:text-slate-400 block font-medium truncate">Terendah (Low)</span>
+                <span className="font-mono font-semibold text-xs text-amber-700 dark:text-amber-400 whitespace-nowrap block tabular-nums">
+                  {formatShortIdr(lowValue)}
                 </span>
               </div>
+              <div className="min-w-0">
+                <span className="text-[10px] text-[#6e685f] dark:text-slate-400 block font-medium truncate">Realized</span>
+                <span className="font-mono font-semibold text-xs text-emerald-700 dark:text-emerald-400 whitespace-nowrap block tabular-nums">
+                  {formatShortIdr(totalRealizedGains)}
+                </span>
+              </div>
+              <div className="min-w-0">
+                <span className="text-[10px] text-[#6e685f] dark:text-slate-400 block font-medium truncate">Floating</span>
+                <span className="font-mono font-semibold text-xs text-sky-700 dark:text-sky-400 whitespace-nowrap block tabular-nums">
+                  {formatShortIdr(totalFloatingGains)}
+                </span>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="flex items-center justify-between flex-wrap gap-2 text-xs p-2 rounded-lg bg-[#faf8f4] dark:bg-[#090c12] border border-[#ede8dc] dark:border-[#1a2233]">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />
+                <span className="text-[#44403c] dark:text-slate-300 font-medium text-[11px]">
+                  Profit: <strong className="text-emerald-700 dark:text-emerald-400 font-mono">{winCount}</strong>
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-rose-500 inline-block" />
+                <span className="text-[#44403c] dark:text-slate-300 font-medium text-[11px]">
+                  Loss: <strong className="text-rose-700 dark:text-rose-400 font-mono">{lossCount}</strong>
+                </span>
+              </div>
+              <span className="text-[#b8b0a2] dark:text-slate-500">•</span>
+              <span className="text-[#6e685f] dark:text-slate-400 text-[11px]">
+                Win Rate: <strong className="text-[#1c1917] dark:text-white font-mono">{Math.round((winCount / (winCount + lossCount || 1)) * 100)}%</strong>
+              </span>
+            </div>
 
-              {/* Best Trade */}
-              {bestTrade && (
-                <div className="text-[#6e685f] dark:text-slate-400">
-                  Profit Tertinggi:{' '}
-                  <span className="text-emerald-700 dark:text-emerald-400 font-semibold">
-                    +{formatShortIdr(bestTrade.pnl)} ({bestTrade.asset})
-                  </span>
-                </div>
-              )}
-            </>
-          )}
-        </div>
+            {bestTrade && (
+              <div className="text-[11px] text-[#6e685f] dark:text-slate-400 font-mono">
+                Top: <span className="text-emerald-700 dark:text-emerald-400 font-semibold">+{formatShortIdr(bestTrade.pnl)} ({bestTrade.asset})</span>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Chart Canvas Area */}
         <div className="grow mt-1">
           <ChartContainer
             config={chartConfig}
-            className="h-64 sm:h-72 w-full [&_.recharts-curve.recharts-tooltip-cursor]:stroke-initial"
+            className="h-60 sm:h-72 w-full [&_.recharts-curve.recharts-tooltip-cursor]:stroke-initial"
           >
             <ComposedChart
               data={(chartType === 'line' ? lineChartData : barChartData) as any}
               margin={{
-                top: 20,
-                right: 15,
-                left: 5,
-                bottom: 15,
+                top: 15,
+                right: 10,
+                left: -15,
+                bottom: 10,
               }}
             >
               <defs>
@@ -509,24 +505,25 @@ export const DetailedEquityChart: React.FC<DetailedEquityChartProps> = ({ record
                 dataKey={chartType === 'line' ? 'date' : 'name'}
                 axisLine={false}
                 tickLine={false}
-                tick={{ fontSize: 11, fill: isDark ? '#94a3b8' : '#78716c' }}
-                tickMargin={12}
+                tick={{ fontSize: 10, fill: isDark ? '#94a3b8' : '#78716c' }}
+                tickMargin={8}
                 interval={chartType === 'line' ? 'preserveStartEnd' : 0}
               />
 
               <YAxis
                 axisLine={false}
                 tickLine={false}
-                tick={{ fontSize: 11, fill: isDark ? '#94a3b8' : '#78716c' }}
+                width={45}
+                tick={{ fontSize: 9, fill: isDark ? '#94a3b8' : '#78716c' }}
                 tickFormatter={value => {
                   const abs = Math.abs(value);
                   const prefix = value < 0 ? '-' : '';
                   if (abs >= 1) {
-                    return `${prefix}Rp ${abs.toFixed(1)} Jt`;
+                    return `${prefix}${abs.toFixed(1)}Jt`;
                   }
-                  return `${prefix}Rp ${Math.round(abs * 1000)} Rb`;
+                  return `${prefix}${Math.round(abs * 1000)}Rb`;
                 }}
-                tickMargin={12}
+                tickMargin={4}
                 domain={chartType === 'line' ? ['dataMin - 0.2', 'dataMax + 0.2'] : ['auto', 'auto']}
               />
 

@@ -1,8 +1,7 @@
-'use client';
-
 import React, { useState, useMemo } from 'react';
 import type { InvestmentRecord } from '../types';
 import { isNonInvestmentOrExpense } from '../services/googleSheets';
+import { usePrivacy } from '../context/PrivacyContext';
 import {
   ChevronDown,
   ChevronUp,
@@ -43,6 +42,8 @@ export const AssetPerformanceHeatmap: React.FC<AssetPerformanceHeatmapProps> = (
   records,
   onSelectAsset,
 }) => {
+  const { formatPrivacyIdr } = usePrivacy();
+
   // Scope filter: 'ALL' (Semua Aset), 'FLOATING' (Floating Saja), 'REALIZED' (Realized Saja)
   const [scope, setScope] = useState<'ALL' | 'FLOATING' | 'REALIZED'>('ALL');
   // Classification & ranking basis: 'PERCENT' (% ROI) vs 'NOMINAL' (Rp Value)
@@ -258,7 +259,7 @@ export const AssetPerformanceHeatmap: React.FC<AssetPerformanceHeatmapProps> = (
           </span>
           <span className="text-[#b8b0a2] dark:text-slate-600">·</span>
           <span className="text-[#1c1917] dark:text-white font-mono text-xs font-semibold">
-            {scope === 'REALIZED' ? 'Total Modal Realized' : 'Total Modal Masuk (Aktif)'}: Rp {Math.round(totalCapitalPool).toLocaleString('id-ID')}
+            {scope === 'REALIZED' ? 'Total Modal Realized' : 'Total Modal Masuk (Aktif)'}: {formatPrivacyIdr(totalCapitalPool)}
           </span>
           <span className="text-[#b8b0a2] dark:text-slate-600">·</span>
           <span className="text-[#6e685f] dark:text-slate-400 font-mono text-[11px]">
@@ -446,7 +447,7 @@ export const AssetPerformanceHeatmap: React.FC<AssetPerformanceHeatmapProps> = (
                             2. Nominal Laba Bersih:
                           </span>
                           <span className="font-mono font-semibold text-emerald-700 dark:text-emerald-400 tabular-nums">
-                            +Rp {Math.round(topWinner.totalLabaBersih).toLocaleString('id-ID')}
+                            +{formatPrivacyIdr(topWinner.totalLabaBersih)}
                           </span>
                         </div>
 
@@ -464,7 +465,7 @@ export const AssetPerformanceHeatmap: React.FC<AssetPerformanceHeatmapProps> = (
                           </div>
                           <div className="flex items-center justify-between text-[10px] text-[#8a8377] dark:text-slate-500 font-mono mt-0.5">
                             <span>{topWinner.totalNominal > 0 ? 'Modal Aktif:' : 'Modal Historis:'}</span>
-                            <span>Rp {Math.round(topWinner.totalNominal > 0 ? topWinner.totalNominal : topWinner.historicalNominal).toLocaleString('id-ID')}</span>
+                            <span>{formatPrivacyIdr(topWinner.totalNominal > 0 ? topWinner.totalNominal : topWinner.historicalNominal)}</span>
                           </div>
                           {/* Mini Progress Bar */}
                           <div className="w-full bg-[#ede8dc] dark:bg-[#1a2233] h-1.5 rounded-full overflow-hidden mt-1">
@@ -550,8 +551,8 @@ export const AssetPerformanceHeatmap: React.FC<AssetPerformanceHeatmapProps> = (
                                 : 'text-rose-700 dark:text-rose-400'
                             }`}
                           >
-                            {worstLoser.totalLabaBersih >= 0 ? '+' : ''}Rp{' '}
-                            {Math.round(worstLoser.totalLabaBersih).toLocaleString('id-ID')}
+                            {worstLoser.totalLabaBersih >= 0 ? '+' : ''}
+                            {formatPrivacyIdr(worstLoser.totalLabaBersih)}
                           </span>
                         </div>
 
@@ -569,7 +570,7 @@ export const AssetPerformanceHeatmap: React.FC<AssetPerformanceHeatmapProps> = (
                           </div>
                           <div className="flex items-center justify-between text-[10px] text-[#8a8377] dark:text-slate-500 font-mono mt-0.5">
                             <span>{worstLoser.totalNominal > 0 ? 'Modal Aktif:' : 'Modal Historis:'}</span>
-                            <span>Rp {Math.round(worstLoser.totalNominal > 0 ? worstLoser.totalNominal : worstLoser.historicalNominal).toLocaleString('id-ID')}</span>
+                            <span>{formatPrivacyIdr(worstLoser.totalNominal > 0 ? worstLoser.totalNominal : worstLoser.historicalNominal)}</span>
                           </div>
                           {/* Mini Progress Bar */}
                           <div className="w-full bg-[#ede8dc] dark:bg-[#1a2233] h-1.5 rounded-full overflow-hidden mt-1">
@@ -623,7 +624,7 @@ export const AssetPerformanceHeatmap: React.FC<AssetPerformanceHeatmapProps> = (
                           totalProfit >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-700 dark:text-rose-400'
                         }`}
                       >
-                        {totalProfit >= 0 ? '+' : ''}Rp {Math.round(totalProfit).toLocaleString('id-ID')}
+                        {totalProfit >= 0 ? '+' : ''}{formatPrivacyIdr(totalProfit)}
                       </div>
                     </div>
 
@@ -634,7 +635,7 @@ export const AssetPerformanceHeatmap: React.FC<AssetPerformanceHeatmapProps> = (
                           {scope === 'REALIZED' ? 'Total Modal Realized:' : 'Total Modal Masuk (Aktif):'}
                         </span>
                         <span className="font-mono font-semibold text-[#1c1917] dark:text-white tabular-nums">
-                          Rp {Math.round(totalCapitalPool).toLocaleString('id-ID')}
+                          {formatPrivacyIdr(totalCapitalPool)}
                         </span>
                       </div>
 
@@ -883,7 +884,7 @@ export const AssetPerformanceHeatmap: React.FC<AssetPerformanceHeatmapProps> = (
                             isProfitable ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-700 dark:text-rose-400'
                           }`}
                         >
-                          {isProfitable ? '+' : ''}Rp {Math.round(item.totalLabaBersih).toLocaleString('id-ID')}
+                          {isProfitable ? '+' : ''}{formatPrivacyIdr(item.totalLabaBersih)}
                         </div>
                       </div>
                     </div>
@@ -895,7 +896,7 @@ export const AssetPerformanceHeatmap: React.FC<AssetPerformanceHeatmapProps> = (
                           {item.totalNominal > 0 ? 'Modal Aktif:' : 'Modal Historis:'}
                         </span>
                         <span className="font-mono text-[#1c1917] dark:text-slate-200 tabular-nums font-medium">
-                          Rp {Math.round(item.totalNominal > 0 ? item.totalNominal : item.historicalNominal).toLocaleString('id-ID')}
+                          {formatPrivacyIdr(item.totalNominal > 0 ? item.totalNominal : item.historicalNominal)}
                         </span>
                       </div>
 
